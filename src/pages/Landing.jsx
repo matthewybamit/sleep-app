@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Moon, Calendar, CheckCircle, BarChart3, Clock, Brain, Heart, Zap, TrendingUp, Shield, Users, ArrowRight, Sparkles, ChevronDown, User, LogOut, Home, ListTodo } from 'lucide-react';
+import ZenPsychLogo from '../assets/ZenPsych.png';
 
 export default function Landing() {
   const { user } = useAuth();
@@ -94,100 +95,108 @@ export default function Landing() {
   return (
     <div className="min-h-screen">
       {/* Navigation */}
-      <nav className="fixed top-0 w-full bg-slate-900/80 backdrop-blur-xl border-b border-white/10 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30">
-              <Moon size={20} className="text-white" fill="currentColor" />
-            </div>
-            <span className="text-xl font-bold">ZenPsych</span>
+    <nav className="fixed top-0 w-full bg-slate-900/80 backdrop-blur-xl border-b border-white/10 z-50">
+  <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center">
+    <div className="flex items-center gap-2 sm:gap-3">
+      <img 
+        src={ZenPsychLogo} 
+        alt="ZenPsych Logo" 
+        className="h-8 sm:h-10 w-auto" 
+      />
+      <span className="text-xl sm:text-2xl font-bold text-white">ZenPsych</span>
+    </div>
+
+    {/* Conditional Navigation */}
+    {user ? (
+      // Logged In - Show User Dropdown
+      <div className="relative" ref={dropdownRef}>
+        <button
+          onClick={() => setDropdownOpen(!dropdownOpen)}
+          className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-colors"
+        >
+          <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-sm font-semibold">
+            {user.email?.charAt(0).toUpperCase()}
           </div>
+          <span className="text-sm font-medium hidden sm:block">
+            {user.email?.split('@')[0]}
+          </span>
+          <ChevronDown size={16} className={`transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+        </button>
 
-          {/* Conditional Navigation */}
-          {user ? (
-            // Logged In - Show User Dropdown
-            <div className="relative" ref={dropdownRef}>
-              <button
-                onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="flex items-center gap-3 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-colors"
+        {/* Dropdown Menu */}
+        {dropdownOpen && (
+          <div className="absolute right-0 mt-2 w-56 bg-slate-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden backdrop-blur-xl">
+            <div className="p-3 border-b border-white/10">
+              <p className="text-sm font-medium text-white truncate">{user.email}</p>
+              <p className="text-xs text-slate-400 mt-1">Free Account</p>
+            </div>
+
+            <div className="p-2">
+              <Link
+                to="/dashboard"
+                onClick={() => setDropdownOpen(false)}
+                className="flex items-center gap-3 px-3 py-2 text-slate-300 hover:bg-white/5 rounded-lg transition-colors"
               >
-                <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-sm font-semibold">
-                  {user.email?.charAt(0).toUpperCase()}
-                </div>
-                <span className="text-sm font-medium hidden sm:block">
-                  {user.email?.split('@')[0]}
-                </span>
-                <ChevronDown size={16} className={`transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+                <Home size={18} />
+                <span className="text-sm">Dashboard</span>
+              </Link>
+              <Link
+                to="/tracker"
+                onClick={() => setDropdownOpen(false)}
+                className="flex items-center gap-3 px-3 py-2 text-slate-300 hover:bg-white/5 rounded-lg transition-colors"
+              >
+                <Moon size={18} />
+                <span className="text-sm">Sleep Tracker</span>
+              </Link>
+              <Link
+                to="/routine"
+                onClick={() => setDropdownOpen(false)}
+                className="flex items-center gap-3 px-3 py-2 text-slate-300 hover:bg-white/5 rounded-lg transition-colors"
+              >
+                <ListTodo size={18} />
+                <span className="text-sm">My Routine</span>
+              </Link>
+              <Link
+                to="/insights"
+                onClick={() => setDropdownOpen(false)}
+                className="flex items-center gap-3 px-3 py-2 text-slate-300 hover:bg-white/5 rounded-lg transition-colors"
+              >
+                <BarChart3 size={18} />
+                <span className="text-sm">Insights</span>
+              </Link>
+            </div>
+
+            <div className="p-2 border-t border-white/10">
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-3 px-3 py-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors w-full"
+              >
+                <LogOut size={18} />
+                <span className="text-sm">Sign Out</span>
               </button>
-
-              {/* Dropdown Menu */}
-              {dropdownOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-slate-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden backdrop-blur-xl">
-                  <div className="p-3 border-b border-white/10">
-                    <p className="text-sm font-medium text-white">{user.email}</p>
-                    <p className="text-xs text-slate-400 mt-1">Free Account</p>
-                  </div>
-
-                  <div className="p-2">
-                    <Link
-                      to="/dashboard"
-                      onClick={() => setDropdownOpen(false)}
-                      className="flex items-center gap-3 px-3 py-2 text-slate-300 hover:bg-white/5 rounded-lg transition-colors"
-                    >
-                      <Home size={18} />
-                      <span className="text-sm">Dashboard</span>
-                    </Link>
-                    <Link
-                      to="/tracker"
-                      onClick={() => setDropdownOpen(false)}
-                      className="flex items-center gap-3 px-3 py-2 text-slate-300 hover:bg-white/5 rounded-lg transition-colors"
-                    >
-                      <Moon size={18} />
-                      <span className="text-sm">Sleep Tracker</span>
-                    </Link>
-                    <Link
-                      to="/routine"
-                      onClick={() => setDropdownOpen(false)}
-                      className="flex items-center gap-3 px-3 py-2 text-slate-300 hover:bg-white/5 rounded-lg transition-colors"
-                    >
-                      <ListTodo size={18} />
-                      <span className="text-sm">My Routine</span>
-                    </Link>
-                    <Link
-                      to="/insights"
-                      onClick={() => setDropdownOpen(false)}
-                      className="flex items-center gap-3 px-3 py-2 text-slate-300 hover:bg-white/5 rounded-lg transition-colors"
-                    >
-                      <BarChart3 size={18} />
-                      <span className="text-sm">Insights</span>
-                    </Link>
-                  </div>
-
-                  <div className="p-2 border-t border-white/10">
-                    <button
-                      onClick={handleLogout}
-                      className="flex items-center gap-3 px-3 py-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors w-full"
-                    >
-                      <LogOut size={18} />
-                      <span className="text-sm">Sign Out</span>
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
-          ) : (
-            // Not Logged In - Show Sign In / Get Started
-            <div className="flex gap-4">
-              <Link to="/login" className="px-6 py-2 text-slate-300 hover:text-white transition-colors">
-                Sign In
-              </Link>
-              <Link to="/register" className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg font-medium transition-colors shadow-lg shadow-indigo-500/25">
-                Get Started
-              </Link>
-            </div>
-          )}
-        </div>
-      </nav>
+          </div>
+        )}
+      </div>
+    ) : (
+      // Not Logged In - MOBILE OPTIMIZED BUTTONS
+      <div className="flex gap-2 sm:gap-4">
+        <Link 
+          to="/login" 
+          className="px-3 sm:px-6 py-2 text-sm sm:text-base text-slate-300 hover:text-white transition-colors whitespace-nowrap"
+        >
+          Sign In
+        </Link>
+        <Link 
+          to="/register" 
+          className="px-3 sm:px-6 py-2 text-sm sm:text-base bg-indigo-600 hover:bg-indigo-500 rounded-lg font-medium transition-colors shadow-lg shadow-indigo-500/25 whitespace-nowrap"
+        >
+          Get Started
+        </Link>
+      </div>
+    )}
+  </div>
+</nav>
 
       {/* Hero Section */}
       <section className="pt-32 pb-20 px-6">
@@ -303,6 +312,12 @@ export default function Landing() {
 
               <div className="hidden md:flex items-center justify-center">
                 <ArrowRight size={40} className="text-indigo-500" />
+                {/* Could add 
+                
+
+[Image of flowchart arrow connecting three processes]
+
+                here */}
               </div>
 
               <div className="text-center">
@@ -429,10 +444,14 @@ export default function Landing() {
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div className="md:col-span-2">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center">
-                  <Moon size={20} className="text-white" fill="currentColor" />
-                </div>
-                <span className="text-xl font-bold">ZenPsych</span>
+                {/* --- START OF FOOTER LOGO CHANGE (Used image, kept the text span) --- */}
+                <img 
+                  src={ZenPsychLogo} 
+                  alt="ZenPsych Icon" 
+                  className="h-10 w-auto" 
+                />
+                {/* ADDED ZenPsych NAME */}
+                <span className="text-2xl font-bold text-white">ZenPsych</span> 
               </div>
               <p className="text-slate-400 max-w-sm">
                 Your personal sleep tracking and routine management platform. Built to help you achieve better rest and healthier habits.
