@@ -2,7 +2,11 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { Moon, Calendar, CheckCircle, BarChart3, Clock, Brain, Heart, Zap, TrendingUp, Shield, Users, ArrowRight, Sparkles, ChevronDown, User, LogOut, Home, ListTodo } from 'lucide-react';
+import { 
+  Moon, Calendar, CheckCircle, BarChart3, Clock, Brain, Heart, Zap, 
+  TrendingUp, Shield, Users, ArrowRight, Sparkles, ChevronDown, User, 
+  LogOut, Home, ListTodo, Mic, MessageCircle 
+} from 'lucide-react';
 import ZenPsychLogo from '../assets/ZenPsych.png';
 
 export default function Landing() {
@@ -32,33 +36,33 @@ export default function Landing() {
   const features = [
     {
       icon: Moon,
-      title: "Sleep Tracking",
-      description: "Log your bedtime and wake time to monitor sleep patterns and duration over time."
+      title: "Smart Sleep Tracking",
+      description: "Log your bedtime and wake time with one-tap quick actions or voice commands. AI tracks patterns automatically."
+    },
+    {
+      icon: Brain,
+      title: "AI Assistant",
+      description: "Chat with your intelligent assistant using text or voice. Get personalized insights, manage tasks, and control everything hands-free."
     },
     {
       icon: CheckCircle,
       title: "Custom Routines",
-      description: "Build personalized nightly habits with task lists, reminders, and progress tracking."
+      description: "Build personalized nightly habits with task lists, multi-date scheduling, and AI-powered reminders that adapt to your schedule."
     },
     {
       icon: BarChart3,
       title: "Insights & Analytics",
-      description: "Visualize your sleep data with charts showing duration, consistency, and trends."
+      description: "Visualize your sleep data with interactive charts, AI-generated coaching tips, and predictive sleep quality scores."
     },
     {
-      icon: Brain,
-      title: "Sleep Education",
-      description: "Access curated tips, breathing exercises, and science-backed relaxation techniques."
+      icon: MessageCircle,
+      title: "Natural Language Control",
+      description: "Simply say 'I'm going to sleep' or 'Add workout tomorrow at 7 AM' - the AI understands and executes commands instantly."
     },
     {
       icon: TrendingUp,
-      title: "Streak Tracking",
-      description: "Stay motivated with daily streaks and completion rates for your routines."
-    },
-    {
-      icon: Heart,
-      title: "Health Focus",
-      description: "Improve overall wellbeing with better sleep hygiene and consistent habits."
+      title: "Intelligent Streak Tracking",
+      description: "Stay motivated with AI-powered streak protection alerts and smart notifications when you're at risk of breaking consistency."
     }
   ];
 
@@ -66,157 +70,157 @@ export default function Landing() {
     {
       number: "01",
       title: "Create Your Account",
-      description: "Sign up with your email and complete your profile with basic information like age and preferences."
+      description: "Sign up with your email and complete your profile. The AI assistant greets you and helps set up your sleep goals."
     },
     {
       number: "02",
-      title: "Build Your Routine",
-      description: "Customize your nightly routine with tasks like meditation, reading, or hygiene activities."
+      title: "Build Your Routine with AI",
+      description: "Tell the AI what tasks you want: 'Add meditation at 9 PM' or 'Create my bedtime routine' - it handles scheduling for any date."
     },
     {
       number: "03",
-      title: "Track Your Sleep",
-      description: "Log your bedtime and wake time each day to build a comprehensive sleep history."
+      title: "Track Sleep Hands-Free",
+      description: "Say 'I'm going to sleep' or tap the quick button. Wake up and tell the AI 'I woke up' - fully automated tracking."
     },
     {
       number: "04",
-      title: "Monitor Progress",
-      description: "View detailed analytics, streaks, and insights to understand and improve your sleep patterns."
+      title: "Get AI-Powered Insights",
+      description: "Ask 'Why is my sleep inconsistent?' or 'Analyze my patterns' - receive personalized coaching and actionable recommendations."
     }
   ];
 
   const benefits = [
-    { icon: Clock, text: "Average 45 minutes more sleep per night" },
-    { icon: Zap, text: "Improved energy and focus throughout the day" },
-    { icon: Shield, text: "Consistent sleep schedule reduces health risks" },
-    { icon: Users, text: "Join thousands improving their sleep quality" }
+    { icon: Brain, text: "AI-powered sleep analysis and coaching" },
+    { icon: Mic, text: "Voice control for hands-free tracking" },
+    { icon: Zap, text: "Instant task management across all dates" },
+    { icon: Users, text: "Join thousands improving with AI guidance" }
   ];
 
   return (
     <div className="min-h-screen">
       {/* Navigation */}
-    <nav className="fixed top-0 w-full bg-slate-900/80 backdrop-blur-xl border-b border-white/10 z-50">
-  <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center">
-    <div className="flex items-center gap-2 sm:gap-3">
-      <img 
-        src={ZenPsychLogo} 
-        alt="ZenPsych Logo" 
-        className="h-8 sm:h-10 w-auto" 
-      />
-      <span className="text-xl sm:text-2xl font-bold text-white">ZenPsych</span>
-    </div>
-
-    {/* Conditional Navigation */}
-    {user ? (
-      // Logged In - Show User Dropdown
-      <div className="relative" ref={dropdownRef}>
-        <button
-          onClick={() => setDropdownOpen(!dropdownOpen)}
-          className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-colors"
-        >
-          <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-sm font-semibold">
-            {user.email?.charAt(0).toUpperCase()}
+      <nav className="fixed top-0 w-full bg-slate-900/80 backdrop-blur-xl border-b border-white/10 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <img 
+              src={ZenPsychLogo} 
+              alt="ZenPsych Logo" 
+              className="h-8 sm:h-10 w-auto" 
+            />
+            <span className="text-xl sm:text-2xl font-bold text-white">ZenPsych</span>
           </div>
-          <span className="text-sm font-medium hidden sm:block">
-            {user.email?.split('@')[0]}
-          </span>
-          <ChevronDown size={16} className={`transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
-        </button>
 
-        {/* Dropdown Menu */}
-        {dropdownOpen && (
-          <div className="absolute right-0 mt-2 w-56 bg-slate-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden backdrop-blur-xl">
-            <div className="p-3 border-b border-white/10">
-              <p className="text-sm font-medium text-white truncate">{user.email}</p>
-              <p className="text-xs text-slate-400 mt-1">Free Account</p>
-            </div>
-
-            <div className="p-2">
-              <Link
-                to="/dashboard"
-                onClick={() => setDropdownOpen(false)}
-                className="flex items-center gap-3 px-3 py-2 text-slate-300 hover:bg-white/5 rounded-lg transition-colors"
-              >
-                <Home size={18} />
-                <span className="text-sm">Dashboard</span>
-              </Link>
-              <Link
-                to="/tracker"
-                onClick={() => setDropdownOpen(false)}
-                className="flex items-center gap-3 px-3 py-2 text-slate-300 hover:bg-white/5 rounded-lg transition-colors"
-              >
-                <Moon size={18} />
-                <span className="text-sm">Sleep Tracker</span>
-              </Link>
-              <Link
-                to="/routine"
-                onClick={() => setDropdownOpen(false)}
-                className="flex items-center gap-3 px-3 py-2 text-slate-300 hover:bg-white/5 rounded-lg transition-colors"
-              >
-                <ListTodo size={18} />
-                <span className="text-sm">My Routine</span>
-              </Link>
-              <Link
-                to="/insights"
-                onClick={() => setDropdownOpen(false)}
-                className="flex items-center gap-3 px-3 py-2 text-slate-300 hover:bg-white/5 rounded-lg transition-colors"
-              >
-                <BarChart3 size={18} />
-                <span className="text-sm">Insights</span>
-              </Link>
-            </div>
-
-            <div className="p-2 border-t border-white/10">
+          {/* Conditional Navigation */}
+          {user ? (
+            // Logged In - Show User Dropdown
+            <div className="relative" ref={dropdownRef}>
               <button
-                onClick={handleLogout}
-                className="flex items-center gap-3 px-3 py-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors w-full"
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+                className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-colors"
               >
-                <LogOut size={18} />
-                <span className="text-sm">Sign Out</span>
+                <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-sm font-semibold">
+                  {user.email?.charAt(0).toUpperCase()}
+                </div>
+                <span className="text-sm font-medium hidden sm:block">
+                  {user.email?.split('@')[0]}
+                </span>
+                <ChevronDown size={16} className={`transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
               </button>
+
+              {/* Dropdown Menu */}
+              {dropdownOpen && (
+                <div className="absolute right-0 mt-2 w-56 bg-slate-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden backdrop-blur-xl">
+                  <div className="p-3 border-b border-white/10">
+                    <p className="text-sm font-medium text-white truncate">{user.email}</p>
+                    <p className="text-xs text-slate-400 mt-1">Free Account</p>
+                  </div>
+
+                  <div className="p-2">
+                    <Link
+                      to="/dashboard"
+                      onClick={() => setDropdownOpen(false)}
+                      className="flex items-center gap-3 px-3 py-2 text-slate-300 hover:bg-white/5 rounded-lg transition-colors"
+                    >
+                      <Home size={18} />
+                      <span className="text-sm">Dashboard</span>
+                    </Link>
+                    <Link
+                      to="/tracker"
+                      onClick={() => setDropdownOpen(false)}
+                      className="flex items-center gap-3 px-3 py-2 text-slate-300 hover:bg-white/5 rounded-lg transition-colors"
+                    >
+                      <Moon size={18} />
+                      <span className="text-sm">Sleep Tracker</span>
+                    </Link>
+                    <Link
+                      to="/routine"
+                      onClick={() => setDropdownOpen(false)}
+                      className="flex items-center gap-3 px-3 py-2 text-slate-300 hover:bg-white/5 rounded-lg transition-colors"
+                    >
+                      <ListTodo size={18} />
+                      <span className="text-sm">My Routine</span>
+                    </Link>
+                    <Link
+                      to="/insights"
+                      onClick={() => setDropdownOpen(false)}
+                      className="flex items-center gap-3 px-3 py-2 text-slate-300 hover:bg-white/5 rounded-lg transition-colors"
+                    >
+                      <BarChart3 size={18} />
+                      <span className="text-sm">Insights</span>
+                    </Link>
+                  </div>
+
+                  <div className="p-2 border-t border-white/10">
+                    <button
+                      onClick={handleLogout}
+                      className="flex items-center gap-3 px-3 py-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors w-full"
+                    >
+                      <LogOut size={18} />
+                      <span className="text-sm">Sign Out</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        )}
-      </div>
-    ) : (
-      // Not Logged In - MOBILE OPTIMIZED BUTTONS
-      <div className="flex gap-2 sm:gap-4">
-        <Link 
-          to="/login" 
-          className="px-3 sm:px-6 py-2 text-sm sm:text-base text-slate-300 hover:text-white transition-colors whitespace-nowrap"
-        >
-          Sign In
-        </Link>
-        <Link 
-          to="/register" 
-          className="px-3 sm:px-6 py-2 text-sm sm:text-base bg-indigo-600 hover:bg-indigo-500 rounded-lg font-medium transition-colors shadow-lg shadow-indigo-500/25 whitespace-nowrap"
-        >
-          Get Started
-        </Link>
-      </div>
-    )}
-  </div>
-</nav>
+          ) : (
+            // Not Logged In - MOBILE OPTIMIZED BUTTONS
+            <div className="flex gap-2 sm:gap-4">
+              <Link 
+                to="/login" 
+                className="px-3 sm:px-6 py-2 text-sm sm:text-base text-slate-300 hover:text-white transition-colors whitespace-nowrap"
+              >
+                Sign In
+              </Link>
+              <Link 
+                to="/register" 
+                className="px-3 sm:px-6 py-2 text-sm sm:text-base bg-indigo-600 hover:bg-indigo-500 rounded-lg font-medium transition-colors shadow-lg shadow-indigo-500/25 whitespace-nowrap"
+              >
+                Get Started
+              </Link>
+            </div>
+          )}
+        </div>
+      </nav>
 
       {/* Hero Section */}
       <section className="pt-32 pb-20 px-6">
         <div className="max-w-6xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/20 px-4 py-2 rounded-full mb-6 backdrop-blur-sm">
             <Sparkles size={16} className="text-indigo-400" />
-            <span className="text-sm text-indigo-300">Your Journey to Better Sleep Starts Here</span>
+            <span className="text-sm text-indigo-300">Now with AI-Powered Voice Assistant 🎙️</span>
           </div>
 
           <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
-            Master Your Sleep,
+            Master Your Sleep with
             <br />
             <span className="bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
-              Transform Your Life
+              AI Intelligence
             </span>
           </h1>
 
           <p className="text-xl text-slate-400 mb-10 max-w-2xl mx-auto leading-relaxed">
-            Track sleep patterns, build consistent routines, and gain insights into your rest quality. 
-            ZenPsych helps you achieve the restorative sleep you deserve.
+            Track sleep patterns, build routines, and chat with your personal AI assistant. 
+            Control everything with voice commands or natural language—ZenPsych adapts to you.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -232,7 +236,7 @@ export default function Landing() {
               </Link>
             )}
             <a href="#how-it-works" className="px-8 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl font-semibold transition-all">
-              Learn How It Works
+              See AI in Action
             </a>
           </div>
 
@@ -248,12 +252,82 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* AI Features Highlight - NEW SECTION */}
+      <section className="py-20 px-6 bg-gradient-to-br from-indigo-900/20 to-purple-900/20">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 bg-purple-500/10 border border-purple-500/20 px-4 py-2 rounded-full mb-4">
+              <Brain size={20} className="text-purple-400" />
+              <span className="text-sm text-purple-300">Powered by Advanced AI</span>
+            </div>
+            <h2 className="text-4xl font-bold mb-4">Your Intelligent Sleep Companion</h2>
+            <p className="text-slate-400 text-lg max-w-2xl mx-auto">
+              Meet your AI assistant that understands natural language, adapts to your habits, and helps you sleep better
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8">
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-8 hover:bg-white/10 transition-all">
+              <div className="w-14 h-14 bg-indigo-600/20 rounded-xl flex items-center justify-center mb-4">
+                <Mic className="text-indigo-400" size={28} />
+              </div>
+              <h3 className="text-2xl font-semibold mb-3">Voice Control</h3>
+              <p className="text-slate-400 mb-4">
+                "I'm going to sleep", "Add meditation tomorrow", "Analyze my sleep" - just speak naturally and the AI executes instantly.
+              </p>
+              <div className="bg-slate-900/50 rounded-lg p-4 border border-indigo-500/20">
+                <p className="text-sm text-indigo-300 font-mono">"I woke up" → Logs sleep automatically ✓</p>
+              </div>
+            </div>
+
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-8 hover:bg-white/10 transition-all">
+              <div className="w-14 h-14 bg-purple-600/20 rounded-xl flex items-center justify-center mb-4">
+                <MessageCircle className="text-purple-400" size={28} />
+              </div>
+              <h3 className="text-2xl font-semibold mb-3">Conversational AI</h3>
+              <p className="text-slate-400 mb-4">
+                Chat with your assistant on any page. It knows your data, understands context, and provides personalized coaching.
+              </p>
+              <div className="bg-slate-900/50 rounded-lg p-4 border border-purple-500/20">
+                <p className="text-sm text-purple-300 font-mono">"Why am I tired?" → Detailed analysis ✓</p>
+              </div>
+            </div>
+
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-8 hover:bg-white/10 transition-all">
+              <div className="w-14 h-14 bg-pink-600/20 rounded-xl flex items-center justify-center mb-4">
+                <Calendar className="text-pink-400" size={28} />
+              </div>
+              <h3 className="text-2xl font-semibold mb-3">Multi-Date Scheduling</h3>
+              <p className="text-slate-400 mb-4">
+                Schedule tasks for today, tomorrow, next week, or any date. The AI understands and creates tasks intelligently.
+              </p>
+              <div className="bg-slate-900/50 rounded-lg p-4 border border-pink-500/20">
+                <p className="text-sm text-pink-300 font-mono">"Add dentist on Monday" → Scheduled ✓</p>
+              </div>
+            </div>
+
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-8 hover:bg-white/10 transition-all">
+              <div className="w-14 h-14 bg-green-600/20 rounded-xl flex items-center justify-center mb-4">
+                <TrendingUp className="text-green-400" size={28} />
+              </div>
+              <h3 className="text-2xl font-semibold mb-3">Predictive Insights</h3>
+              <p className="text-slate-400 mb-4">
+                AI analyzes your patterns and proactively suggests improvements before issues arise. Smart streak protection included.
+              </p>
+              <div className="bg-slate-900/50 rounded-lg p-4 border border-green-500/20">
+                <p className="text-sm text-green-300 font-mono">7-day streak at risk → Alert sent ✓</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Features Section */}
       <section className="py-20 px-6 bg-slate-900/30">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold mb-4">Everything You Need for Better Sleep</h2>
-            <p className="text-slate-400 text-lg">Comprehensive tools designed to help you rest, recover, and thrive.</p>
+            <p className="text-slate-400 text-lg">Comprehensive AI-powered tools designed to help you rest, recover, and thrive.</p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -275,7 +349,7 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold mb-4">How ZenPsych Works</h2>
-            <p className="text-slate-400 text-lg">Four simple steps to transform your sleep quality</p>
+            <p className="text-slate-400 text-lg">Four simple steps to transform your sleep quality with AI assistance</p>
           </div>
 
           <div className="grid md:grid-cols-2 gap-8">
@@ -296,8 +370,8 @@ export default function Landing() {
       <section className="py-20 px-6 bg-slate-900/30">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">Complete Sleep Management System</h2>
-            <p className="text-slate-400 text-lg">A holistic approach to tracking, analyzing, and improving your sleep</p>
+            <h2 className="text-4xl font-bold mb-4">Complete AI-Powered Sleep System</h2>
+            <p className="text-slate-400 text-lg">A holistic approach with intelligent automation at every step</p>
           </div>
 
           <div className="bg-white/5 border border-white/10 rounded-3xl p-8 md:p-12 backdrop-blur-sm">
@@ -306,26 +380,20 @@ export default function Landing() {
                 <div className="w-20 h-20 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl shadow-indigo-500/30">
                   <Moon size={32} className="text-white" />
                 </div>
-                <h3 className="font-semibold text-xl mb-2">Data Collection</h3>
-                <p className="text-slate-400 text-sm">Sleep times, routine tasks, completion tracking</p>
+                <h3 className="font-semibold text-xl mb-2">AI Data Collection</h3>
+                <p className="text-slate-400 text-sm">Voice commands, sleep times, routine tracking with context awareness</p>
               </div>
 
               <div className="hidden md:flex items-center justify-center">
                 <ArrowRight size={40} className="text-indigo-500" />
-                {/* Could add 
-                
-
-[Image of flowchart arrow connecting three processes]
-
-                here */}
               </div>
 
               <div className="text-center">
                 <div className="w-20 h-20 bg-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl shadow-purple-500/30">
-                  <BarChart3 size={32} className="text-white" />
+                  <Brain size={32} className="text-white" />
                 </div>
-                <h3 className="font-semibold text-xl mb-2">Analysis</h3>
-                <p className="text-slate-400 text-sm">Pattern recognition, trend analysis, statistics</p>
+                <h3 className="font-semibold text-xl mb-2">Smart Analysis</h3>
+                <p className="text-slate-400 text-sm">Pattern recognition, predictive modeling, personalized coaching</p>
               </div>
 
               <div className="hidden md:flex items-center justify-center md:col-span-3">
@@ -334,11 +402,11 @@ export default function Landing() {
 
               <div className="text-center md:col-span-3">
                 <div className="w-20 h-20 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl shadow-purple-500/30">
-                  <TrendingUp size={32} className="text-white" />
+                  <Sparkles size={32} className="text-white" />
                 </div>
-                <h3 className="font-semibold text-xl mb-2">Insights & Action</h3>
+                <h3 className="font-semibold text-xl mb-2">AI-Driven Action</h3>
                 <p className="text-slate-400 text-sm max-w-2xl mx-auto">
-                  Personalized recommendations, streak tracking, visual dashboards, and actionable insights to improve your sleep quality
+                  Conversational insights, proactive streak protection, automated task management, and real-time sleep coaching
                 </p>
               </div>
             </div>
@@ -397,15 +465,15 @@ export default function Landing() {
                 <div className="space-y-4">
                   <div className="bg-slate-900/50 p-4 rounded-xl">
                     <h4 className="font-semibold text-indigo-300 mb-2">Students & Professionals</h4>
-                    <p className="text-slate-400 text-sm">Optimize study and work performance through consistent sleep.</p>
+                    <p className="text-slate-400 text-sm">Optimize study and work performance through AI-guided sleep.</p>
                   </div>
                   <div className="bg-slate-900/50 p-4 rounded-xl">
                     <h4 className="font-semibold text-purple-300 mb-2">Athletes & Fitness Enthusiasts</h4>
-                    <p className="text-slate-400 text-sm">Maximize recovery and physical performance.</p>
+                    <p className="text-slate-400 text-sm">Maximize recovery with intelligent sleep tracking.</p>
                   </div>
                   <div className="bg-slate-900/50 p-4 rounded-xl">
                     <h4 className="font-semibold text-pink-300 mb-2">Anyone Seeking Wellness</h4>
-                    <p className="text-slate-400 text-sm">Build healthy habits and improve overall quality of life.</p>
+                    <p className="text-slate-400 text-sm">Build healthy habits with AI coaching and support.</p>
                   </div>
                 </div>
               </div>
@@ -417,9 +485,9 @@ export default function Landing() {
       {/* CTA Section */}
       <section className="py-20 px-6">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-4xl md:text-5xl font-bold mb-6">Ready to Transform Your Sleep?</h2>
+          <h2 className="text-4xl md:text-5xl font-bold mb-6">Ready to Sleep Smarter with AI?</h2>
           <p className="text-xl text-slate-400 mb-10">
-            Join thousands of people who have already improved their sleep quality with ZenPsych.
+            Join thousands using AI-powered sleep intelligence to transform their rest quality.
           </p>
           {user ? (
             <Link to="/dashboard" className="inline-flex items-center gap-3 px-10 py-5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 rounded-xl font-semibold text-lg transition-all shadow-2xl shadow-indigo-500/30 group">
@@ -432,7 +500,7 @@ export default function Landing() {
                 Get Started for Free
                 <ArrowRight size={24} className="group-hover:translate-x-1 transition-transform" />
               </Link>
-              <p className="text-slate-500 text-sm mt-6">No credit card required • Free forever</p>
+              <p className="text-slate-500 text-sm mt-6">No credit card required • AI assistant included • Free forever</p>
             </>
           )}
         </div>
@@ -444,17 +512,15 @@ export default function Landing() {
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div className="md:col-span-2">
               <div className="flex items-center gap-3 mb-4">
-                {/* --- START OF FOOTER LOGO CHANGE (Used image, kept the text span) --- */}
                 <img 
                   src={ZenPsychLogo} 
                   alt="ZenPsych Icon" 
                   className="h-10 w-auto" 
                 />
-                {/* ADDED ZenPsych NAME */}
-                <span className="text-2xl font-bold text-white">ZenPsych</span> 
+                <span className="text-2xl font-bold text-white">ZenPsych</span>
               </div>
               <p className="text-slate-400 max-w-sm">
-                Your personal sleep tracking and routine management platform. Built to help you achieve better rest and healthier habits.
+                Your AI-powered sleep tracking and routine management platform. Built with intelligence to help you achieve better rest and healthier habits.
               </p>
             </div>
             <div>
@@ -475,7 +541,7 @@ export default function Landing() {
             </div>
           </div>
           <div className="border-t border-white/10 pt-8 text-center text-slate-500 text-sm">
-            <p>&copy; 2025 ZenPsych. All rights reserved. Built with care for better sleep.</p>
+            <p>&copy; 2025 ZenPsych. All rights reserved. Built with AI for better sleep.</p>
           </div>
         </div>
       </footer>

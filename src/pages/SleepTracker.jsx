@@ -1,8 +1,9 @@
+// src/pages/SleepTracker.jsx
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { format, subDays, differenceInHours } from 'date-fns';
-import { Moon, Calendar, ChevronDown, ChevronUp, Clock, Bell } from 'lucide-react';
+import { format, subDays, differenceInHours, addDays } from 'date-fns';
+import { Moon, Calendar, ChevronDown, ChevronUp, Clock, Bell, Trash2 } from 'lucide-react';
 
 const STORAGE_KEY = 'sleepTracker_sleepStart';
 const MAX_SLEEP_HOURS = 10; // Alert after 10 hours
@@ -67,7 +68,7 @@ export default function SleepTracker() {
     if ('Notification' in window && Notification.permission === 'granted') {
       const notification = new Notification('Time to Wake Up? 🌅', {
         body: `You've been sleeping for ${hours} hours. Don't forget to log your wake time!`,
-        icon: '/moon-icon.png', // Add your app icon path
+        icon: '/moon-icon.png',
         tag: 'sleep-reminder',
         requireInteraction: true
       });
@@ -92,7 +93,6 @@ export default function SleepTracker() {
     const now = new Date();
     const timestamp = now.toISOString();
     setSleepStart(timestamp);
-    // Save to localStorage for persistence
     localStorage.setItem(STORAGE_KEY, timestamp);
   }
 
@@ -108,7 +108,6 @@ export default function SleepTracker() {
 
     if (!error) {
       setSleepStart(null);
-      // Clear from localStorage
       localStorage.removeItem(STORAGE_KEY);
       fetchLogs();
     }
@@ -137,14 +136,14 @@ export default function SleepTracker() {
 
   function fillYesterday() {
     const yesterday = subDays(new Date(), 1);
+    const twoDaysAgo = subDays(new Date(), 2);
 
-    // Default: sleep at 10 PM, wake at 6 AM (next day)
-    const bedtime = new Date(yesterday);
+    // Default: sleep at 10 PM two days ago, wake at 6 AM yesterday
+    const bedtime = new Date(twoDaysAgo);
     bedtime.setHours(22, 0, 0, 0);
 
     const wakeTime = new Date(yesterday);
     wakeTime.setHours(6, 0, 0, 0);
-    wakeTime.setDate(wakeTime.getDate() + 1);
 
     setStart(bedtime.toISOString().slice(0, 16));
     setEnd(wakeTime.toISOString().slice(0, 16));
@@ -154,11 +153,20 @@ export default function SleepTracker() {
   function calculateManualDuration(startTime, endTime) {
     if (!startTime || !endTime) return '';
 
-    const start = new Date(startTime);
-    const end = new Date(endTime);
+    let start = new Date(startTime);
+    let end = new Date(endTime);
+
+    // SMART DATE CROSSING: If end time is "before" start time on the same day,
+    // assume user meant next day
+    if (end <= start) {
+      // Add one day to end time
+      end = addDays(end, 1);
+    }
+
     const diffMs = end - start;
 
     if (diffMs <= 0) return 'Invalid duration';
+    if (diffMs > 24 * 60 * 60 * 1000) return 'Too long (>24h)';
 
     const hours = Math.floor(diffMs / (1000 * 60 * 60));
     const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
@@ -186,19 +194,33 @@ export default function SleepTracker() {
       return;
     }
 
-    const startTime = new Date(start);
-    const endTime = new Date(end);
+    let startTime = new Date(start);
+    let endTime = new Date(end);
     const now = new Date();
     const sevenDaysAgo = subDays(now, 7);
 
+    // SMART DATE CROSSING FIX:
+    // If wake time is "before" sleep time, assume next day
+    if (endTime <= startTime) {
+      endTime = addDays(endTime, 1);
+      
+      // Update the input field to show corrected date
+      setEnd(endTime.toISOString().slice(0, 16));
+    }
+
     // Validation
     if (endTime <= startTime) {
-      setError('Wake time must be after bedtime');
+      setError('Wake time must be after bedtime (even after auto-correction)');
       return;
     }
 
     if (startTime > now) {
       setError('Cannot log future sleep');
+      return;
+    }
+
+    if (endTime > now) {
+      setError('Wake time cannot be in the future');
       return;
     }
 
@@ -210,6 +232,11 @@ export default function SleepTracker() {
     const duration = (endTime - startTime) / (1000 * 60); // in minutes
     if (duration > 24 * 60) {
       setError('Sleep duration cannot exceed 24 hours');
+      return;
+    }
+
+    if (duration < 10) {
+      setError('Sleep duration must be at least 10 minutes');
       return;
     }
 
@@ -227,6 +254,20 @@ export default function SleepTracker() {
       setError('');
     } else {
       setError('Failed to save sleep log');
+    }
+  }
+
+  async function deleteLog(logId) {
+    if (!confirm('Delete this sleep log?')) return;
+
+    const { error } = await supabase
+      .from('sleep_logs')
+      .delete()
+      .eq('id', logId)
+      .eq('user_id', user.id);
+
+    if (!error) {
+      fetchLogs();
     }
   }
 
@@ -334,9 +375,12 @@ export default function SleepTracker() {
 
         {showManual && (
           <div className="p-6 border-t border-white/10">
-            <p className="text-sm text-slate-400 mb-4">
-              Forgot to track? Log your sleep from the past 7 days.
-            </p>
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 mb-4">
+              <p className="text-sm text-blue-300">
+                💡 <strong>Tip:</strong> If you wake up on a different day than you slept, 
+                the system will automatically adjust the date for you!
+              </p>
+            </div>
 
             {/* Quick Fill Buttons */}
             <div className="flex gap-2 mb-6">
@@ -382,10 +426,11 @@ export default function SleepTracker() {
                   className="w-full bg-slate-800 border border-white/10 rounded-lg p-3 text-white [color-scheme:dark] focus:border-indigo-500 focus:outline-none transition-colors"
                   value={end}
                   onChange={e => setEnd(e.target.value)}
-                  min={start}
                   max={maxDateTime}
                 />
-                <p className="text-xs text-slate-500 mt-1">When you woke up</p>
+                <p className="text-xs text-slate-500 mt-1">
+                  When you woke up (date will auto-adjust if needed)
+                </p>
               </div>
 
               {/* Duration Preview */}
@@ -426,24 +471,33 @@ export default function SleepTracker() {
           {logs.map(log => (
             <div
               key={log.id}
-              className="bg-white/5 border border-white/10 p-4 rounded-xl flex justify-between items-center hover:bg-white/10 transition-colors"
+              className="bg-white/5 border border-white/10 p-4 rounded-xl flex justify-between items-center hover:bg-white/10 transition-colors group"
             >
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 flex-1">
                 <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center">
                   <Calendar size={18} className="text-indigo-400" />
                 </div>
                 <div>
                   <p className="font-medium">{format(new Date(log.sleep_start), 'MMM d, yyyy')}</p>
                   <p className="text-sm text-slate-400">
-                    {format(new Date(log.sleep_start), 'h:mm a')} - {format(new Date(log.sleep_end), 'h:mm a')}
+                    {format(new Date(log.sleep_start), 'h:mm a')} → {format(new Date(log.sleep_end), 'h:mm a')}
                   </p>
                 </div>
               </div>
-              <div className="text-right">
-                <div className="text-lg font-bold text-indigo-300">
-                  {formatDuration(log.duration_minutes)}
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <div className="text-lg font-bold text-indigo-300">
+                    {formatDuration(log.duration_minutes)}
+                  </div>
+                  <div className="text-xs text-slate-500">Duration</div>
                 </div>
-                <div className="text-xs text-slate-500">Duration</div>
+                <button
+                  onClick={() => deleteLog(log.id)}
+                  className="opacity-0 group-hover:opacity-100 p-2 hover:bg-red-500/10 rounded-lg transition-all"
+                  title="Delete log"
+                >
+                  <Trash2 size={16} className="text-red-400" />
+                </button>
               </div>
             </div>
           ))}

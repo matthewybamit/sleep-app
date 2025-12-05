@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { Moon, TrendingUp, Calendar, Award, Clock, Target, Sparkles } from 'lucide-react';
+import { 
+  Moon, TrendingUp, Calendar, Award, Clock, Target, Sparkles, 
+  Brain, Send, X, Mic, MicOff 
+} from 'lucide-react';
 import { format, subDays } from 'date-fns';
 
 export default function Dashboard() {
@@ -13,7 +16,7 @@ export default function Dashboard() {
     totalTasks: 0,
     avgSleep: 0,
     avgSleepMinutes: 0,
-    sleepGoalMinutes: 450, // Default 7.5 hours
+    sleepGoalMinutes: 450,
     lastSleep: null,
     totalLogs: 0,
     sleepConsistency: null
@@ -22,15 +25,96 @@ export default function Dashboard() {
   const [dynamicTips, setDynamicTips] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // AI Assistant state
+  const [showAIChat, setShowAIChat] = useState(false);
+  const [aiMessages, setAIMessages] = useState([]);
+  const [aiInput, setAIInput] = useState('');
+  const [isAIThinking, setIsAIThinking] = useState(false);
+  
+  // Voice input state
+  const [isListening, setIsListening] = useState(false);
+  const [recognition, setRecognition] = useState(null);
+
+  // Location state
+  const [userLocation, setUserLocation] = useState({
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    city: null,
+    country: null
+  });
+
   useEffect(() => {
     fetchDashboardData();
     fetchWeather();
+    initializeAI();
   }, []);
 
-  // Mock weather API
+  // Initialize speech recognition
+  useEffect(() => {
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const recognitionInstance = new SpeechRecognition();
+      recognitionInstance.continuous = false;
+      recognitionInstance.interimResults = false;
+      recognitionInstance.lang = 'en-US';
+
+      recognitionInstance.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        setAIInput(transcript);
+        setIsListening(false);
+      };
+
+      recognitionInstance.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+      };
+
+      recognitionInstance.onend = () => {
+        setIsListening(false);
+      };
+
+      setRecognition(recognitionInstance);
+    }
+  }, []);
+
+  // Get user location
+  useEffect(() => {
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          try {
+            const response = await fetch(
+              `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${position.coords.latitude}&longitude=${position.coords.longitude}&localityLanguage=en`
+            );
+            const data = await response.json();
+            
+            setUserLocation({
+              timezone,
+              city: data.city || data.locality,
+              country: data.countryName
+            });
+          } catch (error) {
+            setUserLocation({ timezone, city: null, country: null });
+          }
+        },
+        () => {
+          setUserLocation({ timezone, city: null, country: null });
+        }
+      );
+    }
+  }, []);
+
+  function initializeAI() {
+    setAIMessages([{
+      role: 'assistant',
+      content: '👋 Hi! I\'m your Sleep Intelligence Assistant. I can help you:\n\n• Analyze your sleep patterns\n• Get personalized sleep advice\n• Track your progress\n• Answer questions about your data\n\nTry: "Why is my sleep inconsistent?" or "How can I improve my sleep tonight?"'
+    }]);
+  }
+
   async function fetchWeather() {
     setTimeout(() => {
-      const mockTemp = Math.floor(Math.random() * 30) + 60; // 60-90°F
+      const mockTemp = Math.floor(Math.random() * 30) + 60;
       setWeatherData({
         temperature: mockTemp,
         unit: 'F'
@@ -41,14 +125,12 @@ export default function Dashboard() {
   async function fetchDashboardData() {
     setLoading(true);
 
-    // Fetch user profile with sleep goal
     const { data: profile } = await supabase
       .from('profiles')
       .select('sleep_goal_minutes')
       .eq('id', user.id)
       .single();
 
-    // Fetch routine data
     const today = new Date().toISOString().split('T')[0];
     const { data: tasks } = await supabase
       .from('routine_tasks')
@@ -62,7 +144,6 @@ export default function Dashboard() {
       .eq('user_id', user.id)
       .eq('completed_date', today);
 
-    // Fetch sleep logs
     const { data: sleepLogs } = await supabase
       .from('sleep_logs')
       .select('*')
@@ -70,16 +151,13 @@ export default function Dashboard() {
       .order('sleep_start', { ascending: false })
       .limit(30);
 
-    // Calculate streak
     const streak = await calculateStreak();
 
-    // Calculate average sleep from last 7 days
     const last7Days = sleepLogs?.slice(0, 7) || [];
     const avgSleepMinutes = last7Days.length > 0
       ? last7Days.reduce((sum, log) => sum + (log.duration_minutes || 0), 0) / last7Days.length
       : 0;
 
-    // Calculate bedtime consistency
     const consistency = calculateBedtimeConsistency(last7Days);
 
     const statsData = {
@@ -92,7 +170,8 @@ export default function Dashboard() {
       sleepGoalMinutes: profile?.sleep_goal_minutes || 450,
       lastSleep: sleepLogs?.[0] || null,
       totalLogs: sleepLogs?.length || 0,
-      sleepConsistency: consistency
+      sleepConsistency: consistency,
+      recentLogs: last7Days
     };
 
     setStats(statsData);
@@ -133,23 +212,18 @@ export default function Dashboard() {
   function calculateBedtimeConsistency(sleepLogs) {
     if (sleepLogs.length < 2) return null;
 
-    // Extract hours from sleep_start as minutes from midnight
     const bedtimes = sleepLogs.map(log => {
       const date = new Date(log.sleep_start);
       return date.getHours() * 60 + date.getMinutes();
     });
 
-    // Calculate mean
     const mean = bedtimes.reduce((sum, time) => sum + time, 0) / bedtimes.length;
-
-    // Calculate standard deviation
     const variance = bedtimes.reduce((sum, time) => sum + Math.pow(time - mean, 2), 0) / bedtimes.length;
     const stdDev = Math.sqrt(variance);
 
-    return stdDev; // in minutes
+    return stdDev;
   }
 
-  // Utility function to format duration
   function formatDuration(minutes) {
     if (!minutes || minutes <= 0) return '0 hr 0 min';
     const hours = Math.floor(minutes / 60);
@@ -157,11 +231,9 @@ export default function Dashboard() {
     return `${hours} hr ${mins} min`;
   }
 
-  // 🧠 SOPHISTICATED DYNAMIC TIP ENGINE
   function getDynamicTips() {
     const tips = [];
 
-    // P1: Environmental - Temperature check
     if (weatherData && weatherData.temperature > 75) {
       tips.push({
         priority: 1,
@@ -171,7 +243,6 @@ export default function Dashboard() {
       });
     }
 
-    // P2: Behavioral Gaps - Routine progress
     if (stats.routineProgress < 50 && stats.totalTasks > 0) {
       tips.push({
         priority: 2,
@@ -181,7 +252,6 @@ export default function Dashboard() {
       });
     }
 
-    // P3: Consistency - Bedtime variance
     if (stats.sleepConsistency !== null && stats.sleepConsistency > 60) {
       const variationHours = Math.round(stats.sleepConsistency / 60 * 10) / 10;
       tips.push({
@@ -192,7 +262,6 @@ export default function Dashboard() {
       });
     }
 
-    // P4: Performance - Sleep goal deficit
     if (stats.avgSleepMinutes > 0 && stats.avgSleepMinutes < stats.sleepGoalMinutes - 30) {
       const deficit = Math.round(stats.sleepGoalMinutes - stats.avgSleepMinutes);
       tips.push({
@@ -203,7 +272,6 @@ export default function Dashboard() {
       });
     }
 
-    // P5: Onboarding - New user guidance
     if (stats.totalLogs < 5) {
       tips.push({
         priority: 5,
@@ -213,7 +281,6 @@ export default function Dashboard() {
       });
     }
 
-    // P6+: Default/Wellness fallbacks
     tips.push({
       priority: 6,
       title: "4-7-8 Breathing Technique",
@@ -242,11 +309,9 @@ export default function Dashboard() {
       icon: "☕"
     });
 
-    // Sort by priority and return top 3
     return tips.sort((a, b) => a.priority - b.priority).slice(0, 3);
   }
 
-  // Generate tips when data is ready
   useEffect(() => {
     if (!loading && weatherData) {
       const tips = getDynamicTips();
@@ -261,6 +326,142 @@ export default function Dashboard() {
     return 'Good Evening';
   }
 
+  // Voice input handlers
+  function toggleVoiceInput() {
+    if (!recognition) {
+      alert('Voice recognition not supported in this browser. Try Chrome or Edge.');
+      return;
+    }
+
+    if (isListening) {
+      recognition.stop();
+      setIsListening(false);
+    } else {
+      recognition.start();
+      setIsListening(true);
+    }
+  }
+
+  // AI Chat Function
+  async function handleAISubmit(e) {
+    e.preventDefault();
+    if (!aiInput.trim()) return;
+    
+    const userMessage = { role: 'user', content: aiInput };
+    setAIMessages(prev => [...prev, userMessage]);
+    const userInputText = aiInput;
+    setAIInput('');
+    setIsAIThinking(true);
+    
+    try {
+      const now = new Date();
+      const hour = now.getHours();
+      const timeOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : hour < 21 ? 'evening' : 'night';
+      const dayOfWeek = now.toLocaleDateString('en-US', { weekday: 'long' });
+      
+      const systemPrompt = `You are a Sleep Intelligence Assistant specialized in sleep science, circadian rhythms, and behavior change. You help users optimize their sleep quality through evidence-based advice.
+
+CURRENT USER DATA:
+- Current Time: ${hour}:00 (${timeOfDay})
+- Day: ${dayOfWeek}
+- Timezone: ${userLocation.timezone}
+${userLocation.city ? `- Location: ${userLocation.city}, ${userLocation.country}` : ''}
+
+SLEEP METRICS:
+- Current Streak: ${stats.streak} days
+- Total Sleep Logs: ${stats.totalLogs}
+- Average Sleep (7 days): ${formatDuration(stats.avgSleepMinutes)}
+- Sleep Goal: ${formatDuration(stats.sleepGoalMinutes)}
+- Sleep Deficit: ${stats.avgSleepMinutes > 0 ? formatDuration(Math.abs(stats.sleepGoalMinutes - stats.avgSleepMinutes)) : 'No data'}
+- Bedtime Consistency: ${stats.sleepConsistency ? `${Math.round(stats.sleepConsistency)} minutes variance` : 'Not enough data'}
+- Last Sleep: ${stats.lastSleep ? formatDuration(stats.lastSleep.duration_minutes) + ' on ' + format(new Date(stats.lastSleep.sleep_start), 'MMM d') : 'No recent log'}
+
+ROUTINE STATUS:
+- Tonight's Progress: ${stats.routineProgress}% (${stats.completedTasks}/${stats.totalTasks} tasks)
+
+ENVIRONMENTAL:
+- Current Temperature: ${weatherData?.temperature || 'Unknown'}°F
+
+RECENT SLEEP PATTERN (last 7 days):
+${stats.recentLogs?.map((log, i) => 
+  `Day ${i+1}: ${formatDuration(log.duration_minutes)} (${format(new Date(log.sleep_start), 'MMM d')})`
+).join('\n') || 'No data'}
+
+YOUR CAPABILITIES:
+1. Analyze sleep patterns and identify issues
+2. Provide evidence-based sleep recommendations
+3. Explain sleep science concepts (REM, circadian rhythm, etc.)
+4. Give personalized tips based on user's data
+5. Motivate and encourage consistency
+6. Answer questions about their stats
+
+RESPONSE GUIDELINES:
+- Be supportive, encouraging, and science-based
+- Reference their actual data when relevant
+- Keep responses 3-4 sentences for simple questions
+- Use emojis sparingly (1-2 per message)
+- If they ask for analysis, provide detailed insights
+- For "why" questions, explain the science
+- Suggest actionable steps they can take tonight
+
+EXAMPLE INTERACTIONS:
+
+User: "Why is my sleep inconsistent?"
+You: "Looking at your data, your bedtime varies by ${stats.sleepConsistency ? Math.round(stats.sleepConsistency) : '60'} minutes. This disrupts your circadian rhythm, making it harder to fall asleep. Try setting a consistent 10:30 PM bedtime alarm for the next week. Your body will start producing melatonin at the right time, improving sleep onset by 20-30%."
+
+User: "How can I sleep better tonight?"
+You: "Based on your ${stats.routineProgress}% routine completion, I recommend: 1) Finish your remaining tasks now, 2) Set room to 65°F (it's currently ${weatherData?.temperature}°F), 3) No screens after 10 PM. Your last sleep was ${stats.lastSleep ? formatDuration(stats.lastSleep.duration_minutes) : 'not logged'} - let's beat that tonight! 😴"
+
+User: "What's my streak?"
+You: "You're on a ${stats.streak}-day streak! ${stats.streak < 7 ? 'Keep building momentum - consistency is key!' : stats.streak < 30 ? 'Amazing work! You\'re developing a solid habit.' : 'Incredible dedication! You\'re a sleep champion! 🏆'} Complete tonight's routine to keep it going."
+
+User: "Analyze my sleep"
+You: "📊 Sleep Analysis:\n\n✅ Strengths:\n${stats.totalLogs >= 7 ? `- ${stats.totalLogs} logs tracked\n` : ''}${stats.avgSleepMinutes >= stats.sleepGoalMinutes ? '- Meeting sleep goal\n' : ''}${stats.streak >= 7 ? `- ${stats.streak}-day consistency streak\n` : ''}\n\n⚠️ Areas to improve:\n${stats.avgSleepMinutes < stats.sleepGoalMinutes ? `- ${formatDuration(stats.sleepGoalMinutes - stats.avgSleepMinutes)} below goal\n` : ''}${stats.sleepConsistency && stats.sleepConsistency > 60 ? `- Bedtime variance too high (${Math.round(stats.sleepConsistency)}min)\n` : ''}${stats.routineProgress < 80 ? `- Routine completion low (${stats.routineProgress}%)\n` : ''}\n\n💡 Top priority: ${stats.sleepConsistency && stats.sleepConsistency > 60 ? 'Stabilize bedtime' : stats.avgSleepMinutes < stats.sleepGoalMinutes ? 'Increase sleep duration' : 'Maintain consistency'}"
+
+ALWAYS be helpful, data-driven, and actionable. Never make medical diagnoses.`;
+
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_GROQ_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userInputText }
+          ],
+          temperature: 0.7,
+          max_tokens: 500
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        console.error('Groq API Error:', data);
+        throw new Error(data.error?.message || 'AI service error');
+      }
+
+      const aiResponse = data.choices[0].message.content;
+      
+      setAIMessages(prev => [...prev, {
+        role: 'assistant',
+        content: aiResponse
+      }]);
+      
+    } catch (error) {
+      console.error('AI Error:', error);
+      setAIMessages(prev => [...prev, {
+        role: 'assistant',
+        content: `❌ Error: ${error.message}. Please try again.`
+      }]);
+    } finally {
+      setIsAIThinking(false);
+    }
+  }
+
   if (loading || !weatherData) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -271,7 +472,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6 sm:space-y-8 pb-6">
-      {/* Header - Mobile Optimized */}
+      {/* Header */}
       <header>
         <h2 className="text-2xl sm:text-3xl font-bold flex flex-wrap items-center gap-2 sm:gap-3">
           <span>{getGreeting()}, {user?.email?.split('@')[0] || 'User'}</span>
@@ -279,20 +480,22 @@ export default function Dashboard() {
         </h2>
         <p className="text-slate-400 mt-2 text-sm sm:text-base">
           {stats.totalLogs > 0 
-            ? "Your personalized insights are ready!" 
+            ? "Your personalized insights are ready! Ask the AI for detailed analysis." 
             : "Let's start building your sleep profile!"}
         </p>
       </header>
 
-      {/* Stats Grid - Mobile Responsive */}
+      {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
-        <StatCard
-          icon={Award}
-          label="Current Streak"
-          value={`${stats.streak} ${stats.streak === 1 ? 'Day' : 'Days'}`}
-          color="from-yellow-600/20 to-yellow-600/5 border-yellow-500/30"
-          iconColor="text-yellow-400"
-        />
+      <StatCard
+        icon={Award}
+        label="Routine Streak"  // CHANGED FROM "Current Streak"
+        value={`${stats.streak} ${stats.streak === 1 ? 'Day' : 'Days'}`}
+        subtext="Task completion"  // ADDED CLARIFICATION
+        color="from-yellow-600/20 to-yellow-600/5 border-yellow-500/30"
+        iconColor="text-yellow-400"
+      />
+
         <StatCard
           icon={Target}
           label="Today's Routine"
@@ -319,9 +522,9 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Main Content Grid - Mobile Stacked */}
+      {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* ✨ DYNAMIC SLEEP TIPS */}
+        {/* Dynamic Sleep Tips */}
         <div className="lg:col-span-2 bg-white/5 border border-white/10 rounded-2xl p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
             <h3 className="text-lg sm:text-xl font-semibold flex items-center gap-2">
@@ -357,42 +560,48 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Progress Card - Full Width on Mobile */}
-        <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-5 sm:p-6 shadow-xl shadow-indigo-900/50 text-white flex flex-col justify-between min-h-[280px]">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Award className="opacity-90" size={20} />
-              <h3 className="text-base sm:text-lg font-medium opacity-90">Sleep Streak</h3>
-            </div>
-            <div className="text-4xl sm:text-5xl font-bold mt-2">{stats.streak}</div>
-            <p className="text-xs sm:text-sm opacity-75 mt-1">
-              {stats.streak === 0 && "Start your streak today!"}
-              {stats.streak === 1 && "Great start! Keep going!"}
-              {stats.streak > 1 && stats.streak < 7 && "You're building momentum!"}
-              {stats.streak >= 7 && stats.streak < 30 && "Amazing consistency!"}
-              {stats.streak >= 30 && "Incredible dedication! 🎉"}
-            </p>
-          </div>
 
-          <div className="mt-6 sm:mt-8">
-            <div className="flex justify-between text-xs sm:text-sm mb-2 opacity-90">
-              <span>Tonight's Routine</span>
-              <span>{stats.routineProgress}%</span>
-            </div>
-            <div className="h-3 bg-black/20 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-white transition-all duration-500" 
-                style={{ width: `${stats.routineProgress}%` }}
-              ></div>
-            </div>
-            <p className="text-xs opacity-75 mt-2">
-              {stats.completedTasks} of {stats.totalTasks} tasks completed
-            </p>
-          </div>
-        </div>
+      {/* Progress Card */}
+<div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-5 sm:p-6 shadow-xl shadow-indigo-900/50 text-white flex flex-col justify-between min-h-[280px]">
+  <div>
+    <div className="flex items-center gap-2 mb-2">
+      <Award className="opacity-90" size={20} />
+      <h3 className="text-base sm:text-lg font-medium opacity-90">Routine Streak</h3>  {/* CHANGED */}
+    </div>
+    <div className="text-4xl sm:text-5xl font-bold mt-2">{stats.streak}</div>
+    <p className="text-xs sm:text-sm opacity-75 mt-1">
+      {/* UPDATED DESCRIPTIONS */}
+      {stats.streak === 0 && "Complete any task to start your streak!"}
+      {stats.streak === 1 && "Day 1 of your routine! Keep going!"}
+      {stats.streak > 1 && stats.streak < 7 && `${stats.streak} days of completing tasks!`}
+      {stats.streak >= 7 && stats.streak < 30 && "Building a solid habit!"}
+      {stats.streak >= 30 && "Incredible routine discipline! 🎉"}
+    </p>
+    <p className="text-xs opacity-60 mt-2 italic">
+      Complete at least 1 task daily to maintain streak
+    </p>  {/* ADDED CLARIFICATION */}
+  </div>
+
+  <div className="mt-6 sm:mt-8">
+    <div className="flex justify-between text-xs sm:text-sm mb-2 opacity-90">
+      <span>Tonight's Routine</span>
+      <span>{stats.routineProgress}%</span>
+    </div>
+    <div className="h-3 bg-black/20 rounded-full overflow-hidden">
+      <div 
+        className="h-full bg-white transition-all duration-500" 
+        style={{ width: `${stats.routineProgress}%` }}
+      ></div>
+    </div>
+    <p className="text-xs opacity-75 mt-2">
+      {stats.completedTasks} of {stats.totalTasks} tasks completed
+    </p>
+  </div>
+</div>
+
       </div>
 
-      {/* Last Sleep Summary - Mobile Responsive */}
+      {/* Last Sleep Summary */}
       {stats.lastSleep && (
         <div className="bg-white/5 border border-white/10 rounded-2xl p-4 sm:p-6">
           <h3 className="text-lg sm:text-xl font-semibold mb-4 flex items-center gap-2">
@@ -425,7 +634,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Quick Actions - Mobile Responsive */}
+      {/* Quick Actions */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
         <a 
           href="/tracker"
@@ -445,6 +654,109 @@ export default function Dashboard() {
           <p className="text-slate-400 text-xs sm:text-sm">Finish your nightly tasks</p>
         </a>
       </div>
+
+      {/* Floating AI Assistant Button */}
+      <button
+        onClick={() => setShowAIChat(true)}
+        className="fixed bottom-6 right-6 bg-gradient-to-r from-indigo-600 to-purple-600 p-4 rounded-full shadow-2xl hover:scale-110 transition-transform z-40 group"
+      >
+        <div className="relative">
+          <Brain className="text-white" size={24} />
+          <span className="absolute -top-8 right-0 bg-slate-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+            Sleep AI
+          </span>
+        </div>
+      </button>
+
+      {/* AI Chat Modal */}
+      {showAIChat && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end md:items-center md:justify-end z-50 p-0 md:p-4">
+          <div className="bg-slate-900 border border-white/10 rounded-t-3xl md:rounded-2xl w-full md:w-[420px] h-[85vh] md:h-[600px] flex flex-col shadow-2xl">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-white/10 bg-gradient-to-r from-indigo-600/20 to-purple-600/20">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 flex items-center justify-center">
+                  <Brain size={20} className="text-white" />
+                </div>
+                <div>
+                  <h3 className="font-bold">Sleep AI Assistant</h3>
+                  <p className="text-xs text-slate-400 flex items-center gap-1">
+                    <Sparkles size={12} />
+                    Powered by AI
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowAIChat(false)}
+                className="text-slate-400 hover:text-white transition-colors p-2"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {aiMessages.map((msg, i) => (
+                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[85%] ${
+                    msg.role === 'user' 
+                      ? 'bg-indigo-600 text-white rounded-2xl rounded-br-sm' 
+                      : 'bg-white/10 text-slate-200 rounded-2xl rounded-bl-sm'
+                  } p-3 shadow-lg`}>
+                    <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                  </div>
+                </div>
+              ))}
+              {isAIThinking && (
+                <div className="flex justify-start">
+                  <div className="bg-white/10 p-4 rounded-2xl rounded-bl-sm">
+                    <div className="flex gap-1">
+                      <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}} />
+                      <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{animationDelay: '150ms'}} />
+                      <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{animationDelay: '300ms'}} />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Input with Voice Button */}
+            <form onSubmit={handleAISubmit} className="p-4 border-t border-white/10 bg-slate-900/50">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={toggleVoiceInput}
+                  className={`p-3 rounded-xl transition-colors ${
+                    isListening 
+                      ? 'bg-red-600 hover:bg-red-500 animate-pulse' 
+                      : 'bg-slate-700 hover:bg-slate-600'
+                  }`}
+                >
+                  {isListening ? <MicOff size={20} className="text-white" /> : <Mic size={20} className="text-white" />}
+                </button>
+                <input
+                  type="text"
+                  value={aiInput}
+                  onChange={e => setAIInput(e.target.value)}
+                  placeholder={isListening ? "Listening..." : "Ask about your sleep..."}
+                  className="flex-1 bg-slate-800 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
+                  disabled={isAIThinking}
+                />
+                <button
+                  type="submit"
+                  disabled={!aiInput.trim() || isAIThinking}
+                  className="bg-indigo-600 p-3 rounded-xl hover:bg-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Send size={20} className="text-white" />
+                </button>
+              </div>
+              <p className="text-xs text-slate-500 mt-2 text-center">
+                {isListening ? '🎤 Listening...' : 'Try: "Analyze my sleep" or "Why am I tired?"'}
+              </p>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
