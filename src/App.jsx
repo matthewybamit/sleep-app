@@ -1,15 +1,15 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';  // ← REMOVE BrowserRouter
 import { AuthProvider } from './context/AuthContext';
 import { AIProvider } from './context/AIContext';
-import Landing from './pages/Landing'; // NEW: Import Landing
+import Landing from './pages/Landing';
 import Login from './pages/Login';
-import Register from './pages/Register'; // NEW: Import Register
+import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import SleepTracker from './pages/SleepTracker';
 import Routine from './pages/Routine';
 import Insights from './pages/Insights';
-import Layout from './Components/Layout'; // Fixed: lowercase 'components'
-import GlobalAIAssistant from './Components/GlobalAIAssistant'; // Fixed: lowercase
+import Layout from './Components/Layout';
+import GlobalAIAssistant from './Components/GlobalAIAssistant';
 import { useAuth } from './context/AuthContext';
 
 function PrivateRoute({ children }) {
@@ -33,34 +33,66 @@ function AppContent() {
   const { user } = useAuth();
 
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* PUBLIC ROUTES */}
-        <Route path="/" element={<Landing />} />
-        <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login />} />
-        <Route path="/register" element={user ? <Navigate to="/dashboard" /> : <Register />} />
-        
-        {/* PROTECTED ROUTES */}
-        <Route
-          path="/*"
-          element={
-            <PrivateRoute>
-              <AIProvider>
-                <Layout>
-                  <Routes>
-                    <Route path="/dashboard" element={<Dashboard />} />
-                    <Route path="/tracker" element={<SleepTracker />} />
-                    <Route path="/routine" element={<Routine />} />
-                    <Route path="/insights" element={<Insights />} />
-                  </Routes>
-                </Layout>
-                <GlobalAIAssistant />
-              </AIProvider>
-            </PrivateRoute>
-          }
-        />
-      </Routes>
-    </BrowserRouter>
+    <Routes>  {/* ← REMOVE BrowserRouter wrapper */}
+      {/* PUBLIC ROUTES */}
+      <Route path="/" element={<Landing />} />
+      <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login />} />
+      <Route path="/register" element={user ? <Navigate to="/dashboard" /> : <Register />} />
+      
+      {/* PROTECTED ROUTES */}
+      <Route
+        path="/dashboard"
+        element={
+          <PrivateRoute>
+            <AIProvider>
+              <Layout>
+                <Dashboard />
+              </Layout>
+              <GlobalAIAssistant />
+            </AIProvider>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/tracker"
+        element={
+          <PrivateRoute>
+            <AIProvider>
+              <Layout>
+                <SleepTracker />
+              </Layout>
+              <GlobalAIAssistant />
+            </AIProvider>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/routine"
+        element={
+          <PrivateRoute>
+            <AIProvider>
+              <Layout>
+                <Routine />
+              </Layout>
+              <GlobalAIAssistant />
+            </AIProvider>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/insights"
+        element={
+          <PrivateRoute>
+            <AIProvider>
+              <Layout>
+                <Insights />
+              </Layout>
+              <GlobalAIAssistant />
+            </AIProvider>
+          </PrivateRoute>
+        }
+      />
+    </Routes>
   );
 }
 
