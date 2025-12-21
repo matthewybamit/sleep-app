@@ -2,19 +2,19 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { 
-  BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, 
-  ResponsiveContainer, Cell, ReferenceLine, Legend, Area, AreaChart 
+import {
+  BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip,
+  ResponsiveContainer, Cell, ReferenceLine, Legend, Area, AreaChart
 } from 'recharts';
-import { 
-  Calendar, TrendingUp, Award, Clock, Zap, Target, 
-  AlertTriangle, CheckCircle, Moon, Sun, Brain, Activity 
+import {
+  Calendar, TrendingUp, Award, Clock, Zap, Target,
+  AlertTriangle, CheckCircle, Moon, Sun, Brain, Activity
 } from 'lucide-react';
 import { format, differenceInDays, startOfWeek, endOfWeek, isWeekend } from 'date-fns';
 
 const TARGET_SLEEP_HOURS = 7.5;
-const OPTIMAL_BEDTIME_HOUR = 22; // 10 PM
-const OPTIMAL_WAKE_HOUR = 6; // 6 AM
+const OPTIMAL_BEDTIME_HOUR = 22;
+const OPTIMAL_WAKE_HOUR = 6;
 
 export default function Insights() {
   const { user } = useAuth();
@@ -33,7 +33,7 @@ export default function Insights() {
     weekdayAvg: 0,
     weekendAvg: 0,
     optimalBedtimes: 0,
-    trend: 'stable'
+    trend: 'stable',
   });
   const [recommendations, setRecommendations] = useState([]);
 
@@ -42,7 +42,6 @@ export default function Insights() {
   }, [period]);
 
   async function getData() {
-    // Fetch ALL logs for comprehensive analysis
     const { data: allLogsData } = await supabase
       .from('sleep_logs')
       .select('*')
@@ -51,7 +50,6 @@ export default function Insights() {
 
     setAllLogs(allLogsData || []);
 
-    // Fetch period-specific logs for chart
     let query = supabase
       .from('sleep_logs')
       .select('*')
@@ -65,13 +63,13 @@ export default function Insights() {
     }
 
     const { data: logs } = await query;
-    
+
     if (logs && logs.length > 0) {
-      const formatted = logs.map(log => {
+      const formatted = logs.map((log) => {
         const sleepStart = new Date(log.sleep_start);
         const sleepEnd = new Date(log.sleep_end);
         const hours = log.duration_minutes / 60;
-        
+
         return {
           day: format(sleepStart, 'MMM dd'),
           fullDate: format(sleepStart, 'yyyy-MM-dd'),
@@ -81,10 +79,10 @@ export default function Insights() {
           bedtimeFormatted: format(sleepStart, 'h:mm a'),
           wakeTimeFormatted: format(sleepEnd, 'h:mm a'),
           isWeekend: isWeekend(sleepStart),
-          meetsGoal: hours >= TARGET_SLEEP_HOURS
+          meetsGoal: hours >= TARGET_SLEEP_HOURS,
         };
       });
-      
+
       setData(formatted);
       calculateStats(formatted, allLogsData || []);
     } else {
@@ -101,7 +99,7 @@ export default function Insights() {
         weekdayAvg: 0,
         weekendAvg: 0,
         optimalBedtimes: 0,
-        trend: 'stable'
+        trend: 'stable',
       });
       setRecommendations([]);
     }
@@ -110,67 +108,73 @@ export default function Insights() {
   function calculateStats(chartData, allData) {
     if (chartData.length === 0) return;
 
-    // Basic stats
-    const hours = chartData.map(d => d.hours);
+    const hours = chartData.map((d) => d.hours);
     const avgDuration = hours.reduce((a, b) => a + b, 0) / hours.length;
     const bestNight = Math.max(...hours);
     const worstNight = Math.min(...hours);
 
-    // Bedtime consistency (standard deviation)
-    const bedtimes = chartData.map(d => d.bedtime);
+    const bedtimes = chartData.map((d) => d.bedtime);
     const avgBedtime = bedtimes.reduce((a, b) => a + b, 0) / bedtimes.length;
-    const bedtimeVariance = bedtimes.reduce((sum, time) => sum + Math.pow(time - avgBedtime, 2), 0) / bedtimes.length;
-    const bedtimeStdDev = Math.sqrt(bedtimeVariance) * 60; // minutes
+    const bedtimeVariance =
+      bedtimes.reduce((sum, time) => sum + Math.pow(time - avgBedtime, 2), 0) /
+      bedtimes.length;
+    const bedtimeStdDev = Math.sqrt(bedtimeVariance) * 60;
 
-    // Wake time consistency
-    const wakeTimes = chartData.map(d => d.wakeTime);
+    const wakeTimes = chartData.map((d) => d.wakeTime);
     const avgWakeTime = wakeTimes.reduce((a, b) => a + b, 0) / wakeTimes.length;
-    const wakeVariance = wakeTimes.reduce((sum, time) => sum + Math.pow(time - avgWakeTime, 2), 0) / wakeTimes.length;
-    const wakeStdDev = Math.sqrt(wakeVariance) * 60; // minutes
+    const wakeVariance =
+      wakeTimes.reduce((sum, time) => sum + Math.pow(time - avgWakeTime, 2), 0) /
+      wakeTimes.length;
+    const wakeStdDev = Math.sqrt(wakeVariance) * 60;
 
-    // Sleep debt (cumulative difference from target)
     const totalDebt = chartData.reduce((debt, day) => {
       return debt + (TARGET_SLEEP_HOURS - day.hours);
     }, 0);
 
-    // Current streak (consecutive days meeting goal)
     let streak = 0;
     for (let i = allData.length - 1; i >= 0; i--) {
-      const hours = allData[i].duration_minutes / 60;
-      if (hours >= TARGET_SLEEP_HOURS) {
-        streak++;
-      } else {
-        break;
-      }
+      const h = allData[i].duration_minutes / 60;
+      if (h >= TARGET_SLEEP_HOURS) streak++;
+      else break;
     }
 
-    // Weekday vs Weekend
-    const weekdayLogs = chartData.filter(d => !d.isWeekend);
-    const weekendLogs = chartData.filter(d => d.isWeekend);
-    const weekdayAvg = weekdayLogs.length > 0 
-      ? weekdayLogs.reduce((a, b) => a + b.hours, 0) / weekdayLogs.length 
-      : 0;
-    const weekendAvg = weekendLogs.length > 0 
-      ? weekendLogs.reduce((a, b) => a + b.hours, 0) / weekendLogs.length 
-      : 0;
+    const weekdayLogs = chartData.filter((d) => !d.isWeekend);
+    const weekendLogs = chartData.filter((d) => d.isWeekend);
+    const weekdayAvg =
+      weekdayLogs.length > 0
+        ? weekdayLogs.reduce((a, b) => a + b.hours, 0) / weekdayLogs.length
+        : 0;
+    const weekendAvg =
+      weekendLogs.length > 0
+        ? weekendLogs.reduce((a, b) => a + b.hours, 0) / weekendLogs.length
+        : 0;
 
-    // Optimal bedtimes (10 PM - 11 PM)
-    const optimalCount = chartData.filter(d => d.bedtime >= 22 && d.bedtime <= 23).length;
+    const optimalCount = chartData.filter(
+      (d) => d.bedtime >= 22 && d.bedtime <= 23,
+    ).length;
     const optimalBedtimes = (optimalCount / chartData.length) * 100;
 
-    // Quality Score (0-100)
     const durationScore = Math.min((avgDuration / TARGET_SLEEP_HOURS) * 40, 40);
-    const consistencyScore = Math.max(30 - bedtimeStdDev / 2, 0); // Max 30 points
-    const goalScore = (chartData.filter(d => d.meetsGoal).length / chartData.length) * 30;
-    const qualityScore = Math.round(durationScore + consistencyScore + goalScore);
+    const consistencyScore = Math.max(30 - bedtimeStdDev / 2, 0);
+    const goalScore =
+      (chartData.filter((d) => d.meetsGoal).length / chartData.length) * 30;
+    const qualityScore = Math.round(
+      durationScore + consistencyScore + goalScore,
+    );
 
-    // Trend analysis (comparing first half vs second half)
     const midpoint = Math.floor(chartData.length / 2);
     const firstHalf = chartData.slice(0, midpoint);
     const secondHalf = chartData.slice(midpoint);
-    const firstAvg = firstHalf.reduce((a, b) => a + b.hours, 0) / firstHalf.length;
-    const secondAvg = secondHalf.reduce((a, b) => a + b.hours, 0) / secondHalf.length;
-    const trend = secondAvg > firstAvg + 0.3 ? 'improving' : secondAvg < firstAvg - 0.3 ? 'declining' : 'stable';
+    const firstAvg =
+      firstHalf.reduce((a, b) => a + b.hours, 0) / firstHalf.length;
+    const secondAvg =
+      secondHalf.reduce((a, b) => a + b.hours, 0) / secondHalf.length;
+    const trend =
+      secondAvg > firstAvg + 0.3
+        ? 'improving'
+        : secondAvg < firstAvg - 0.3
+        ? 'declining'
+        : 'stable';
 
     setStats({
       avgDuration: avgDuration.toFixed(1),
@@ -186,7 +190,7 @@ export default function Insights() {
       optimalBedtimes: Math.round(optimalBedtimes),
       trend,
       avgBedtime: formatHourToTime(avgBedtime),
-      avgWakeTime: formatHourToTime(avgWakeTime)
+      avgWakeTime: formatHourToTime(avgWakeTime),
     });
 
     generateRecommendations({
@@ -199,7 +203,7 @@ export default function Insights() {
       weekendAvg,
       optimalBedtimes,
       avgBedtime,
-      trend
+      trend,
     });
   }
 
@@ -214,109 +218,124 @@ export default function Insights() {
   function generateRecommendations(data) {
     const recs = [];
 
-    // Sleep duration recommendations
     if (data.avgDuration < 6) {
       recs.push({
         type: 'critical',
         icon: AlertTriangle,
         title: 'Severe Sleep Deprivation',
-        message: `You're averaging ${data.avgDuration.toFixed(1)} hours—far below the 7.5 hour target. Prioritize an earlier bedtime immediately.`,
-        action: 'Go to bed 90 minutes earlier tonight'
+        message: `You're averaging ${data.avgDuration.toFixed(
+          1,
+        )} hours—far below the 7.5 hour target. Prioritize an earlier bedtime immediately.`,
+        action: 'Go to bed 90 minutes earlier tonight',
       });
     } else if (data.avgDuration < 7) {
       recs.push({
         type: 'warning',
         icon: Target,
         title: 'Below Sleep Target',
-        message: `At ${data.avgDuration.toFixed(1)} hours average, you're missing ~${(TARGET_SLEEP_HOURS - data.avgDuration).toFixed(1)} hours per night.`,
-        action: 'Aim for 30-60 minutes more sleep'
+        message: `At ${data.avgDuration.toFixed(
+          1,
+        )} hours average, you're missing ~${(
+          TARGET_SLEEP_HOURS - data.avgDuration
+        ).toFixed(1)} hours per night.`,
+        action: 'Aim for 30-60 minutes more sleep',
       });
     } else if (data.avgDuration >= TARGET_SLEEP_HOURS) {
       recs.push({
         type: 'success',
         icon: CheckCircle,
         title: 'Excellent Sleep Duration',
-        message: `You're meeting your sleep goals at ${data.avgDuration.toFixed(1)} hours average. Keep it up!`,
-        action: 'Maintain this schedule'
+        message: `You're meeting your sleep goals at ${data.avgDuration.toFixed(
+          1,
+        )} hours average. Keep it up!`,
+        action: 'Maintain this schedule',
       });
     }
 
-    // Consistency recommendations
     if (data.bedtimeStdDev > 60) {
       recs.push({
         type: 'warning',
         icon: Clock,
         title: 'Inconsistent Bedtime',
-        message: `Your bedtime varies by ±${Math.round(data.bedtimeStdDev)} minutes. Irregular sleep schedules reduce sleep quality.`,
-        action: 'Set a consistent bedtime within 30 min window'
+        message: `Your bedtime varies by ±${Math.round(
+          data.bedtimeStdDev,
+        )} minutes. Irregular sleep schedules reduce sleep quality.`,
+        action: 'Set a consistent bedtime within 30 min window',
       });
     } else if (data.bedtimeStdDev < 30) {
       recs.push({
         type: 'success',
         icon: CheckCircle,
         title: 'Great Consistency',
-        message: `Your bedtime only varies by ±${Math.round(data.bedtimeStdDev)} minutes. Excellent routine!`,
-        action: 'Keep maintaining this consistency'
+        message: `Your bedtime only varies by ±${Math.round(
+          data.bedtimeStdDev,
+        )} minutes. Excellent routine!`,
+        action: 'Keep maintaining this consistency',
       });
     }
 
-    // Sleep debt
     if (data.totalDebt > 5) {
       recs.push({
         type: 'critical',
         icon: AlertTriangle,
         title: 'Significant Sleep Debt',
-        message: `You have ${Math.abs(data.totalDebt).toFixed(1)} hours of sleep debt. This impacts cognitive function and health.`,
-        action: 'Add 1-2 hours of catch-up sleep this weekend'
+        message: `You have ${Math.abs(
+          data.totalDebt,
+        ).toFixed(1)} hours of sleep debt. This impacts cognitive function and health.`,
+        action: 'Add 1-2 hours of catch-up sleep this weekend',
       });
     } else if (data.totalDebt < -2) {
       recs.push({
         type: 'info',
         icon: Zap,
         title: 'Sleep Surplus',
-        message: `You're sleeping ${Math.abs(data.totalDebt).toFixed(1)} hours more than your target. Feeling well-rested?`,
-        action: 'Monitor for oversleeping patterns'
+        message: `You're sleeping ${Math.abs(
+          data.totalDebt,
+        ).toFixed(1)} hours more than your target. Feeling well-rested?`,
+        action: 'Monitor for oversleeping patterns',
       });
     }
 
-    // Weekday vs Weekend
     if (Math.abs(data.weekdayAvg - data.weekendAvg) > 1.5) {
       recs.push({
         type: 'warning',
         icon: Calendar,
         title: 'Weekend Sleep Catch-Up Pattern',
-        message: `You sleep ${Math.abs(data.weekdayAvg - data.weekendAvg).toFixed(1)} hours ${data.weekendAvg > data.weekdayAvg ? 'more' : 'less'} on weekends. This disrupts your circadian rhythm.`,
-        action: 'Aim for consistent sleep 7 days/week'
+        message: `You sleep ${Math.abs(
+          data.weekdayAvg - data.weekendAvg,
+        ).toFixed(1)} hours ${
+          data.weekendAvg > data.weekdayAvg ? 'more' : 'less'
+        } on weekends. This disrupts your circadian rhythm.`,
+        action: 'Aim for consistent sleep 7 days/week',
       });
     }
 
-    // Bedtime optimization
     if (data.optimalBedtimes < 50) {
       recs.push({
         type: 'info',
         icon: Moon,
         title: 'Optimize Bedtime Window',
         message: `Only ${data.optimalBedtimes}% of your bedtimes are in the optimal 10-11 PM window. Earlier sleep improves quality.`,
-        action: 'Try going to bed between 10-11 PM'
+        action: 'Try going to bed between 10-11 PM',
       });
     }
 
-    // Trend-based recommendations
     if (data.trend === 'improving') {
       recs.push({
         type: 'success',
         icon: TrendingUp,
         title: 'Positive Trend Detected',
         message: 'Your sleep duration is improving over time. Great progress!',
-        action: 'Keep up the momentum'
+        action: 'Keep up the momentum',
       });
     } else if (data.trend === 'declining') {
       recs.push({
         type: 'warning',
         icon: AlertTriangle,
         title: 'Declining Sleep Pattern',
-        message: 'Your sleep duration has decreased recently. Address this before it becomes chronic.',
-        action: 'Review what changed in your routine'
+        message:
+          'Your sleep duration has decreased recently. Address this before it becomes chronic.',
+        action: 'Review what changed in your routine',
       });
     }
 
@@ -324,9 +343,9 @@ export default function Insights() {
   }
 
   const getQualityColor = (score) => {
-    if (score >= 80) return 'text-green-400';
-    if (score >= 60) return 'text-yellow-400';
-    return 'text-red-400';
+    if (score >= 80) return 'text-green-500';
+    if (score >= 60) return 'text-yellow-500';
+    return 'text-red-500';
   };
 
   const getQualityLabel = (score) => {
@@ -340,13 +359,15 @@ export default function Insights() {
     <div className="space-y-8">
       {/* Header with Tabs */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h2 className="text-2xl font-bold">Sleep Insights</h2>
-        
-        <div className="flex gap-2 bg-white/5 border border-white/10 rounded-xl p-1">
+        <h2 className="text-2xl font-bold text-slate-900">Sleep Insights</h2>
+
+        <div className="flex gap-2 bg-white/80 border border-[#BCE1F0] rounded-xl p-1">
           <button
             onClick={() => setPeriod('7')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              period === '7' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white hover:bg-white/5'
+              period === '7'
+                ? 'bg-[#8488C2] text-white'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-[#E0EDFB]'
             }`}
           >
             Last 7 Days
@@ -354,7 +375,9 @@ export default function Insights() {
           <button
             onClick={() => setPeriod('30')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              period === '30' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white hover:bg-white/5'
+              period === '30'
+                ? 'bg-[#8488C2] text-white'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-[#E0EDFB]'
             }`}
           >
             Last 30 Days
@@ -362,7 +385,9 @@ export default function Insights() {
           <button
             onClick={() => setPeriod('all')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              period === 'all' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white hover:bg-white/5'
+              period === 'all'
+                ? 'bg-[#8488C2] text-white'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-[#E0EDFB]'
             }`}
           >
             All Time
@@ -371,14 +396,18 @@ export default function Insights() {
       </div>
 
       {data.length === 0 ? (
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-12">
+        <div className="bg-white/80 border border-[#BCE1F0] rounded-2xl p-12">
           <div className="text-center">
-            <Calendar size={64} className="mx-auto mb-4 text-slate-600" />
-            <h3 className="text-2xl font-bold mb-2">No Sleep Data Yet</h3>
-            <p className="text-slate-400 mb-6">Start tracking your sleep to unlock personalized insights and recommendations</p>
-            <a 
-              href="/tracker" 
-              className="inline-block px-6 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-medium transition-colors"
+            <Calendar size={64} className="mx-auto mb-4 text-slate-400" />
+            <h3 className="text-2xl font-bold mb-2 text-slate-900">
+              No Sleep Data Yet
+            </h3>
+            <p className="text-slate-600 mb-6">
+              Start tracking your sleep to unlock personalized insights and recommendations.
+            </p>
+            <a
+              href="/tracker"
+              className="inline-block px-6 py-3 bg-[#8488C2] hover:bg-[#7378b5] text-white rounded-xl font-medium transition-colors"
             >
               Go to Sleep Tracker
             </a>
@@ -387,36 +416,58 @@ export default function Insights() {
       ) : (
         <>
           {/* Sleep Quality Score - Hero Card */}
-          <div className="bg-gradient-to-br from-indigo-600/30 to-purple-600/30 border border-indigo-500/50 rounded-2xl p-8">
+          <div className="bg-gradient-to-br from-[#BCE1F0] to-[#E9D5FF] border border-[#BCE1F0] rounded-2xl p-8">
             <div className="flex flex-col md:flex-row items-center justify-between gap-6">
               <div className="flex items-center gap-6">
-                <div className="w-24 h-24 rounded-2xl bg-white/10 flex items-center justify-center">
-                  <Brain size={48} className={getQualityColor(stats.qualityScore)} />
+                <div className="w-24 h-24 rounded-2xl bg-white/70 flex items-center justify-center shadow-md">
+                  <Brain
+                    size={48}
+                    className={getQualityColor(stats.qualityScore)}
+                  />
                 </div>
                 <div>
-                  <h3 className="text-sm font-medium text-slate-400 mb-1">Sleep Quality Score</h3>
+                  <h3 className="text-sm font-medium text-slate-600 mb-1">
+                    Sleep Quality Score
+                  </h3>
                   <div className="flex items-baseline gap-3">
-                    <span className={`text-6xl font-bold ${getQualityColor(stats.qualityScore)}`}>
+                    <span
+                      className={`text-6xl font-bold ${getQualityColor(
+                        stats.qualityScore,
+                      )}`}
+                    >
                       {stats.qualityScore}
                     </span>
-                    <span className="text-2xl text-slate-400">/100</span>
+                    <span className="text-2xl text-slate-500">/100</span>
                   </div>
-                  <p className={`text-lg font-semibold mt-2 ${getQualityColor(stats.qualityScore)}`}>
+                  <p
+                    className={`text-lg font-semibold mt-2 ${getQualityColor(
+                      stats.qualityScore,
+                    )}`}
+                  >
                     {getQualityLabel(stats.qualityScore)}
                   </p>
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4 text-center">
-                <div className="bg-white/5 rounded-xl p-4">
-                  <div className="text-2xl font-bold text-white">{stats.streak}</div>
-                  <div className="text-xs text-slate-400">Day Streak</div>
-                </div>
-                <div className="bg-white/5 rounded-xl p-4">
-                  <div className={`text-2xl font-bold ${stats.sleepDebt > 0 ? 'text-red-400' : 'text-green-400'}`}>
-                    {stats.sleepDebt > 0 ? '-' : '+'}{Math.abs(stats.sleepDebt)}h
+                <div className="bg-white/80 rounded-xl p-4 border border-[#BCE1F0]">
+                  <div className="text-2xl font-bold text-slate-900">
+                    {stats.streak}
                   </div>
-                  <div className="text-xs text-slate-400">Sleep {stats.sleepDebt > 0 ? 'Debt' : 'Surplus'}</div>
+                  <div className="text-xs text-slate-600">Day Streak</div>
+                </div>
+                <div className="bg-white/80 rounded-xl p-4 border border-[#BCE1F0]">
+                  <div
+                    className={`text-2xl font-bold ${
+                      stats.sleepDebt > 0 ? 'text-red-500' : 'text-green-600'
+                    }`}
+                  >
+                    {stats.sleepDebt > 0 ? '-' : '+'}
+                    {Math.abs(stats.sleepDebt)}h
+                  </div>
+                  <div className="text-xs text-slate-600">
+                    Sleep {stats.sleepDebt > 0 ? 'Debt' : 'Surplus'}
+                  </div>
                 </div>
               </div>
             </div>
@@ -443,22 +494,34 @@ export default function Insights() {
               icon={Moon}
               title="Bedtime Consistency"
               value={`±${stats.consistency} min`}
-              subtext={stats.consistency < 30 ? 'Excellent' : stats.consistency < 60 ? 'Good' : 'Needs work'}
+              subtext={
+                stats.consistency < 30
+                  ? 'Excellent'
+                  : stats.consistency < 60
+                  ? 'Good'
+                  : 'Needs work'
+              }
               color="blue"
             />
             <StatCard
               icon={Sun}
               title="Wake Consistency"
               value={`±${stats.wakeConsistency} min`}
-              subtext={stats.wakeConsistency < 30 ? 'Excellent' : stats.wakeConsistency < 60 ? 'Good' : 'Needs work'}
-              color="orange"
+              subtext={
+                stats.wakeConsistency < 30
+                  ? 'Excellent'
+                  : stats.wakeConsistency < 60
+                  ? 'Good'
+                  : 'Needs work'
+              }
+              color="green"
             />
           </div>
 
           {/* Sleep Duration Chart */}
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-            <h3 className="text-lg font-medium mb-6 flex items-center gap-2">
-              <Activity className="text-indigo-400" size={20} />
+          <div className="bg-white/80 border border-[#BCE1F0] rounded-2xl p-6">
+            <h3 className="text-lg font-medium mb-6 flex items-center gap-2 text-slate-900">
+              <Activity className="text-[#8488C2]" size={20} />
               Sleep Duration Trend
             </h3>
             <div className="h-80">
@@ -466,19 +529,27 @@ export default function Insights() {
                 <AreaChart data={data}>
                   <defs>
                     <linearGradient id="colorHours" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                      <stop
+                        offset="5%"
+                        stopColor="#8488C2"
+                        stopOpacity={0.5}
+                      />
+                      <stop
+                        offset="95%"
+                        stopColor="#8488C2"
+                        stopOpacity={0}
+                      />
                     </linearGradient>
                   </defs>
                   <XAxis
                     dataKey="day"
-                    stroke="#64748b"
+                    stroke="#94a3b8"
                     fontSize={12}
                     tickLine={false}
                     axisLine={false}
                   />
                   <YAxis
-                    stroke="#64748b"
+                    stroke="#94a3b8"
                     fontSize={12}
                     tickLine={false}
                     axisLine={false}
@@ -486,32 +557,32 @@ export default function Insights() {
                   />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: '#0f172a',
-                      borderColor: '#334155',
-                      color: '#fff',
+                      backgroundColor: '#ffffff',
+                      borderColor: '#BCE1F0',
+                      color: '#0f172a',
                       borderRadius: '12px',
-                      padding: '12px'
+                      padding: '12px',
                     }}
                     formatter={(value, name, props) => [
                       `${value} hrs (${props.payload.bedtimeFormatted} - ${props.payload.wakeTimeFormatted})`,
-                      'Duration'
+                      'Duration',
                     ]}
                   />
                   <ReferenceLine
                     y={TARGET_SLEEP_HOURS}
-                    stroke="#6366f1"
+                    stroke="#4f46e5"
                     strokeDasharray="5 5"
                     label={{
                       value: `Target: ${TARGET_SLEEP_HOURS}h`,
                       position: 'right',
-                      fill: '#6366f1',
-                      fontSize: 12
+                      fill: '#4f46e5',
+                      fontSize: 12,
                     }}
                   />
                   <Area
                     type="monotone"
                     dataKey="hours"
-                    stroke="#6366f1"
+                    stroke="#8488C2"
                     strokeWidth={2}
                     fill="url(#colorHours)"
                   />
@@ -523,78 +594,114 @@ export default function Insights() {
           {/* Weekday vs Weekend Comparison */}
           {stats.weekdayAvg > 0 && stats.weekendAvg > 0 && (
             <div className="grid md:grid-cols-2 gap-6">
-              <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-                <h3 className="text-lg font-medium mb-4 flex items-center gap-2">
-                  <Calendar className="text-blue-400" size={20} />
+              <div className="bg-white/80 border border-[#BCE1F0] rounded-2xl p-6">
+                <h3 className="text-lg font-medium mb-4 flex items-center gap-2 text-slate-900">
+                  <Calendar className="text-[#4f46e5]" size={20} />
                   Weekday vs Weekend
                 </h3>
                 <div className="space-y-4">
                   <div>
                     <div className="flex justify-between mb-2">
-                      <span className="text-sm text-slate-400">Weekday Average</span>
-                      <span className="text-lg font-bold">{stats.weekdayAvg} hrs</span>
+                      <span className="text-sm text-slate-600">
+                        Weekday Average
+                      </span>
+                      <span className="text-lg font-bold text-slate-900">
+                        {stats.weekdayAvg} hrs
+                      </span>
                     </div>
-                    <div className="w-full bg-slate-800 rounded-full h-3">
-                      <div 
-                        className="bg-blue-500 h-3 rounded-full transition-all"
-                        style={{ width: `${(parseFloat(stats.weekdayAvg) / 12) * 100}%` }}
+                    <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
+                      <div
+                        className="bg-[#4f46e5] h-3 rounded-full transition-all"
+                        style={{
+                          width: `${Math.min(
+                            (parseFloat(stats.weekdayAvg) / 12) * 100,
+                            100,
+                          )}%`,
+                        }}
                       />
                     </div>
                   </div>
                   <div>
                     <div className="flex justify-between mb-2">
-                      <span className="text-sm text-slate-400">Weekend Average</span>
-                      <span className="text-lg font-bold">{stats.weekendAvg} hrs</span>
+                      <span className="text-sm text-slate-600">
+                        Weekend Average
+                      </span>
+                      <span className="text-lg font-bold text-slate-900">
+                        {stats.weekendAvg} hrs
+                      </span>
                     </div>
-                    <div className="w-full bg-slate-800 rounded-full h-3">
-                      <div 
-                        className="bg-purple-500 h-3 rounded-full transition-all"
-                        style={{ width: `${(parseFloat(stats.weekendAvg) / 12) * 100}%` }}
+                    <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
+                      <div
+                        className="bg-[#a855f7] h-3 rounded-full transition-all"
+                        style={{
+                          width: `${Math.min(
+                            (parseFloat(stats.weekendAvg) / 12) * 100,
+                            100,
+                          )}%`,
+                        }}
                       />
                     </div>
                   </div>
-                  <div className="pt-4 border-t border-white/10">
-                    <p className="text-sm text-slate-400">
-                      Difference: <span className="font-bold text-white">
-                        {Math.abs(stats.weekdayAvg - stats.weekendAvg).toFixed(1)} hrs
+                  <div className="pt-4 border-t border-[#E5EDF9]">
+                    <p className="text-sm text-slate-700">
+                      Difference:{' '}
+                      <span className="font-bold text-slate-900">
+                        {Math.abs(
+                          stats.weekdayAvg - stats.weekendAvg,
+                        ).toFixed(1)}{' '}
+                        hrs
                       </span>
                       {Math.abs(stats.weekdayAvg - stats.weekendAvg) > 1.5 && (
-                        <span className="text-yellow-400 ml-2">⚠️ High variance</span>
+                        <span className="text-yellow-600 ml-2">
+                          ⚠️ High variance
+                        </span>
                       )}
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-                <h3 className="text-lg font-medium mb-4 flex items-center gap-2">
-                  <Clock className="text-indigo-400" size={20} />
+              <div className="bg-white/80 border border-[#BCE1F0] rounded-2xl p-6">
+                <h3 className="text-lg font-medium mb-4 flex items-center gap-2 text-slate-900">
+                  <Clock className="text-[#8488C2]" size={20} />
                   Sleep Schedule
                 </h3>
                 <div className="space-y-4">
-                  <div className="bg-slate-800/50 rounded-xl p-4">
+                  <div className="bg-[#F3F7FE] rounded-xl p-4">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-slate-400">Average Bedtime</span>
-                      <Moon size={16} className="text-indigo-400" />
+                      <span className="text-sm text-slate-600">
+                        Average Bedtime
+                      </span>
+                      <Moon size={16} className="text-[#8488C2]" />
                     </div>
-                    <p className="text-2xl font-bold">{stats.avgBedtime}</p>
+                    <p className="text-2xl font-bold text-slate-900">
+                      {stats.avgBedtime}
+                    </p>
                   </div>
-                  <div className="bg-slate-800/50 rounded-xl p-4">
+                  <div className="bg-[#F3F7FE] rounded-xl p-4">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-slate-400">Average Wake Time</span>
-                      <Sun size={16} className="text-orange-400" />
+                      <span className="text-sm text-slate-600">
+                        Average Wake Time
+                      </span>
+                      <Sun size={16} className="text-orange-500" />
                     </div>
-                    <p className="text-2xl font-bold">{stats.avgWakeTime}</p>
+                    <p className="text-2xl font-bold text-slate-900">
+                      {stats.avgWakeTime}
+                    </p>
                   </div>
                   <div className="pt-2">
                     <div className="flex justify-between text-sm">
-                      <span className="text-slate-400">Optimal bedtimes</span>
-                      <span className="font-bold">{stats.optimalBedtimes}%</span>
+                      <span className="text-slate-600">Optimal bedtimes</span>
+                      <span className="font-bold text-slate-900">
+                        {stats.optimalBedtimes}%
+                      </span>
                     </div>
-                    <div className="w-full bg-slate-800 rounded-full h-2 mt-2">
-                      <div 
+                    <div className="w-full bg-slate-200 rounded-full h-2 mt-2 overflow-hidden">
+                      <div
                         className="bg-green-500 h-2 rounded-full transition-all"
-                        style={{ width: `${stats.optimalBedtimes}%` }}
+                        style={{
+                          width: `${Math.min(stats.optimalBedtimes, 100)}%`,
+                        }}
                       />
                     </div>
                   </div>
@@ -605,9 +712,9 @@ export default function Insights() {
 
           {/* Smart Recommendations */}
           {recommendations.length > 0 && (
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-              <h3 className="text-lg font-medium mb-6 flex items-center gap-2">
-                <Brain className="text-purple-400" size={20} />
+            <div className="bg-white/80 border border-[#BCE1F0] rounded-2xl p-6">
+              <h3 className="text-lg font-medium mb-6 flex items-center gap-2 text-slate-900">
+                <Brain className="text-[#a855f7]" size={20} />
                 Personalized Recommendations
               </h3>
               <div className="space-y-4">
@@ -625,47 +732,58 @@ export default function Insights() {
 
 function StatCard({ icon: Icon, title, value, subtext, color = 'indigo', trend }) {
   const colorClasses = {
-    indigo: 'from-indigo-600/20 to-indigo-600/5 border-indigo-500/30',
-    purple: 'from-purple-600/20 to-purple-600/5 border-purple-500/30',
-    blue: 'from-blue-600/20 to-blue-600/5 border-blue-500/30',
-    orange: 'from-orange-600/20 to-orange-600/5 border-orange-500/30',
-    green: 'from-green-600/20 to-green-600/5 border-green-500/30'
+    indigo: 'from-[#C7D2FE] to-[#E0EAFF] border-indigo-200',
+    purple: 'from-[#E9D5FF] to-[#F5EBFF] border-purple-200',
+    blue: 'from-[#BFDBFE] to-[#DBEAFE] border-blue-200',
+    green: 'from-[#BBF7D0] to-[#DCFCE7] border-green-200',
   };
 
   const getTrendIcon = () => {
-    if (trend === 'improving') return <TrendingUp size={16} className="text-green-400" />;
-    if (trend === 'declining') return <TrendingUp size={16} className="text-red-400 rotate-180" />;
+    if (trend === 'improving')
+      return <TrendingUp size={16} className="text-green-600" />;
+    if (trend === 'declining')
+      return (
+        <TrendingUp size={16} className="text-red-500 rotate-180" />
+      );
     return null;
   };
 
   return (
-    <div className={`bg-gradient-to-br ${colorClasses[color]} border rounded-2xl p-6 relative overflow-hidden`}>
+    <div
+      className={`bg-gradient-to-br ${
+        colorClasses[color]
+      } border rounded-2xl p-6 relative overflow-hidden`}
+    >
       <div className="flex items-center gap-3 mb-3">
-        <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
-          <Icon size={20} className="text-white" />
+        <div className="w-10 h-10 bg-white/70 rounded-xl flex items-center justify-center">
+          <Icon size={20} className="text-[#4A5A8A]" />
         </div>
-        <div className="text-slate-400 text-sm font-medium flex-1">{title}</div>
+        <div className="text-slate-600 text-sm font-medium flex-1">
+          {title}
+        </div>
         {trend && getTrendIcon()}
       </div>
-      <div className="text-3xl font-bold text-white mb-1">{value}</div>
-      {subtext && <div className="text-xs text-slate-400">{subtext}</div>}
+      <div className="text-3xl font-bold text-slate-900 mb-1">{value}</div>
+      {subtext && (
+        <div className="text-xs text-slate-600">{subtext}</div>
+      )}
     </div>
   );
 }
 
 function RecommendationCard({ type, icon: Icon, title, message, action }) {
   const typeStyles = {
-    success: 'bg-green-500/10 border-green-500/30 text-green-300',
-    warning: 'bg-yellow-500/10 border-yellow-500/30 text-yellow-300',
-    critical: 'bg-red-500/10 border-red-500/30 text-red-300',
-    info: 'bg-blue-500/10 border-blue-500/30 text-blue-300'
+    success: 'bg-green-50 border-green-200 text-green-800',
+    warning: 'bg-yellow-50 border-yellow-200 text-yellow-800',
+    critical: 'bg-red-50 border-red-200 text-red-800',
+    info: 'bg-blue-50 border-blue-200 text-blue-800',
   };
 
   const iconStyles = {
-    success: 'text-green-400',
-    warning: 'text-yellow-400',
-    critical: 'text-red-400',
-    info: 'text-blue-400'
+    success: 'text-green-500',
+    warning: 'text-yellow-500',
+    critical: 'text-red-500',
+    info: 'text-blue-500',
   };
 
   return (
@@ -676,8 +794,8 @@ function RecommendationCard({ type, icon: Icon, title, message, action }) {
         </div>
         <div className="flex-1">
           <h4 className="font-semibold mb-1">{title}</h4>
-          <p className="text-sm text-slate-300 mb-2">{message}</p>
-          <div className="inline-flex items-center gap-2 text-xs font-medium bg-white/10 px-3 py-1.5 rounded-lg">
+          <p className="text-sm mb-2 text-slate-700">{message}</p>
+          <div className="inline-flex items-center gap-2 text-xs font-medium bg-white/70 px-3 py-1.5 rounded-lg text-slate-900">
             <Target size={12} />
             {action}
           </div>

@@ -1,3 +1,4 @@
+// src/pages/Routine.jsx
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
@@ -42,7 +43,6 @@ export default function Routine() {
   const [editTimeOfDay, setEditTimeOfDay] = useState('evening');
   const [editScheduledDate, setEditScheduledDate] = useState('');
 
-  // Feature state
   const [viewMode, setViewMode] = useState('category');
   const [showCalendar, setShowCalendar] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -51,20 +51,17 @@ export default function Routine() {
   const [monthCompletions, setMonthCompletions] = useState([]);
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [upcomingTask, setUpcomingTask] = useState(null);
-  const [viewingDate, setViewingDate] = useState(new Date()); // NEW: Track which date we're viewing
+  const [viewingDate, setViewingDate] = useState(new Date());
 
-  // AI Assistant state
   const [showAIChat, setShowAIChat] = useState(false);
   const [aiMessages, setAIMessages] = useState([]);
   const [aiInput, setAIInput] = useState('');
   const [isAIThinking, setIsAIThinking] = useState(false);
   const [hasProactiveSuggestion, setHasProactiveSuggestion] = useState(false);
   
-  // Voice input state
   const [isListening, setIsListening] = useState(false);
   const [recognition, setRecognition] = useState(null);
 
-  // Location state
   const [userLocation, setUserLocation] = useState({
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     city: null,
@@ -82,14 +79,12 @@ export default function Routine() {
     }
   }, [user]);
 
-  // Refetch when viewing date changes
   useEffect(() => {
     if (user) {
       fetchData();
     }
   }, [viewingDate]);
 
-  // Initialize speech recognition
   useEffect(() => {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -117,7 +112,6 @@ export default function Routine() {
     }
   }, []);
 
-  // Get user location
   useEffect(() => {
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     
@@ -212,7 +206,6 @@ export default function Routine() {
   async function fetchData() {
     const targetDate = viewingDate.toISOString().split('T')[0];
     
-    // Fetch tasks for specific date OR recurring tasks (no scheduled_date)
     const { data: taskData } = await supabase
       .from('routine_tasks')
       .select('*')
@@ -237,7 +230,6 @@ export default function Routine() {
     today.setHours(0, 0, 0, 0);
     
     for (const task of tasks) {
-      // Skip one-time scheduled tasks
       if (task.scheduled_date) {
         streakData[task.id] = 0;
         continue;
@@ -313,7 +305,7 @@ export default function Routine() {
       category: newCategory,
       estimated_duration: 15,
       time_of_day: 'evening',
-      scheduled_date: null // Recurring task by default
+      scheduled_date: null
     });
     
     if (!error) {
@@ -424,12 +416,12 @@ export default function Routine() {
 
   function getStatusColor(status) {
     switch (status) {
-      case 'completed': return 'text-green-400 bg-green-500/10';
-      case 'overdue': return 'text-red-400 bg-red-500/10';
-      case 'current': return 'text-yellow-400 bg-yellow-500/10';
-      case 'upcoming': return 'text-orange-400 bg-orange-500/10';
-      case 'future': return 'text-blue-400 bg-blue-500/10';
-      default: return 'text-slate-500 bg-slate-500/10';
+      case 'completed': return 'text-green-600 bg-green-50';
+      case 'overdue': return 'text-red-600 bg-red-50';
+      case 'current': return 'text-yellow-600 bg-yellow-50';
+      case 'upcoming': return 'text-orange-600 bg-orange-50';
+      case 'future': return 'text-blue-600 bg-blue-50';
+      default: return 'text-slate-500 bg-slate-100';
     }
   }
 
@@ -480,7 +472,6 @@ export default function Routine() {
     return null;
   }
 
-  // Voice input handlers
   function toggleVoiceInput() {
     if (!recognition) {
       alert('Voice recognition not supported in this browser. Try Chrome or Edge.');
@@ -496,7 +487,6 @@ export default function Routine() {
     }
   }
 
-  // Helper function to parse dates from natural language
   function parseDateFromText(text) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -519,14 +509,13 @@ export default function Routine() {
       return nextWeek.toISOString().split('T')[0];
     }
     
-    // Check for day names
     const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
     for (let i = 0; i < days.length; i++) {
       if (lowerText.includes(days[i])) {
         const targetDay = i;
         const currentDay = today.getDay();
         let daysToAdd = targetDay - currentDay;
-        if (daysToAdd <= 0) daysToAdd += 7; // Next occurrence
+        if (daysToAdd <= 0) daysToAdd += 7;
         
         const targetDate = new Date(today);
         targetDate.setDate(targetDate.getDate() + daysToAdd);
@@ -534,17 +523,16 @@ export default function Routine() {
       }
     }
     
-    return null; // Recurring task (no specific date)
+    return null;
   }
 
-  // AI Chat Function with Location, Time Context & Date Scheduling
   async function handleAISubmit(e) {
     e.preventDefault();
     if (!aiInput.trim()) return;
     
     const userMessage = { role: 'user', content: aiInput };
     setAIMessages(prev => [...prev, userMessage]);
-    const userInput = aiInput; // Store before clearing
+    const userInput = aiInput;
     setAIInput('');
     setIsAIThinking(true);
     setHasProactiveSuggestion(false);
@@ -712,7 +700,6 @@ ALWAYS respond with valid JSON`;
 
       const aiResponse = JSON.parse(data.choices[0].message.content);
       
-      // Parse date if needed for ADD_TASK
       if (aiResponse.action && aiResponse.action.type === 'ADD_TASK') {
         if (!aiResponse.action.params.scheduledDate) {
           const parsedDate = parseDateFromText(userInput);
@@ -835,7 +822,6 @@ ALWAYS respond with valid JSON`;
     }
   }
 
-  // Date navigation functions
   function changeViewingDate(days) {
     const newDate = new Date(viewingDate);
     newDate.setDate(newDate.getDate() + days);
@@ -896,27 +882,27 @@ ALWAYS respond with valid JSON`;
           <div className="flex items-center gap-3">
             <button
               onClick={() => changeViewingDate(-1)}
-              className="p-2 bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
+              className="p-2 bg-white/80 border border-[#E0EDFB] hover:bg-[#F3F7FE] rounded-lg transition-colors text-slate-700"
             >
               <ChevronLeft size={20} />
             </button>
             
             <div className="text-center">
-              <h2 className="text-2xl font-bold">
+              <h2 className="text-2xl font-bold text-slate-900">
                 {isToday ? "Today's Routine" : viewingDate.toLocaleDateString('en-US', { 
                   weekday: 'long',
                   month: 'short', 
                   day: 'numeric' 
                 })}
               </h2>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-500">
                 {viewingDate.toISOString().split('T')[0]}
               </p>
             </div>
 
             <button
               onClick={() => changeViewingDate(1)}
-              className="p-2 bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
+              className="p-2 bg-white/80 border border-[#E0EDFB] hover:bg-[#F3F7FE] rounded-lg transition-colors text-slate-700"
             >
               <ChevronRight size={20} />
             </button>
@@ -926,27 +912,27 @@ ALWAYS respond with valid JSON`;
             {!isToday && (
               <button
                 onClick={goToToday}
-                className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm transition-colors"
+                className="px-3 py-2 bg-[#8488C2] hover:bg-[#7378b5] text-white rounded-lg text-sm transition-colors shadow-sm"
               >
                 Today
               </button>
             )}
             <button
               onClick={() => setShowCalendar(!showCalendar)}
-              className={`p-2 rounded-lg transition-colors ${
+              className={`p-2 rounded-lg border text-sm transition-colors ${
                 showCalendar 
-                  ? 'bg-indigo-600 text-white' 
-                  : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                  ? 'bg-[#8488C2] text-white border-[#8488C2]' 
+                  : 'bg-white/80 text-slate-700 border-[#E0EDFB] hover:bg-[#F3F7FE]'
               }`}
             >
               <Calendar size={20} />
             </button>
             <button
               onClick={() => setViewMode(viewMode === 'category' ? 'timeline' : 'category')}
-              className={`p-2 rounded-lg transition-colors ${
+              className={`p-2 rounded-lg border text-sm transition-colors ${
                 viewMode === 'timeline' 
-                  ? 'bg-indigo-600 text-white' 
-                  : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                  ? 'bg-[#8488C2] text-white border-[#8488C2]' 
+                  : 'bg-white/80 text-slate-700 border-[#E0EDFB] hover:bg-[#F3F7FE]'
               }`}
             >
               <Clock size={20} />
@@ -955,29 +941,29 @@ ALWAYS respond with valid JSON`;
         </div>
 
         {/* Progress Bar */}
-        <div className="flex items-center justify-between text-sm text-slate-400 mb-2">
+        <div className="flex items-center justify-between text-sm text-slate-600 mb-2">
           <span>{completions.length} / {tasks.length} Completed</span>
           <span>{Math.round(progress)}%</span>
         </div>
-        <div className="h-3 bg-slate-800 rounded-full overflow-hidden">
+        <div className="h-3 bg-slate-200 rounded-full overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500"
+            className="h-full bg-gradient-to-r from-[#8488C2] to-[#A855F7] transition-all duration-500"
             style={{ width: `${progress}%` }}
           ></div>
         </div>
 
         {/* Next Up Banner */}
         {upcomingTask && viewMode === 'timeline' && isToday && (
-          <div className="mt-4 p-4 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border border-indigo-500/30 rounded-xl">
+          <div className="mt-4 p-4 bg-gradient-to-r from-[#BCE1F0] to-[#E9D5FF] border border-[#BCE1F0] rounded-xl shadow-sm">
             <div className="flex items-center gap-3">
-              <Target className="text-indigo-400" size={24} />
+              <Target className="text-[#8488C2]" size={24} />
               <div className="flex-1">
-                <p className="text-sm text-slate-400">Next Up</p>
-                <p className="text-white font-semibold">{upcomingTask.title}</p>
+                <p className="text-sm text-slate-600">Next Up</p>
+                <p className="text-slate-900 font-semibold">{upcomingTask.title}</p>
               </div>
               <div className="text-right">
-                <p className="text-indigo-400 font-bold">{upcomingTask.reminder_time}</p>
-                <p className="text-xs text-slate-400">{upcomingTask.estimated_duration} min</p>
+                <p className="text-[#4A5A8A] font-bold">{upcomingTask.reminder_time}</p>
+                <p className="text-xs text-slate-500">{upcomingTask.estimated_duration} min</p>
               </div>
             </div>
           </div>
@@ -986,20 +972,20 @@ ALWAYS respond with valid JSON`;
 
       {/* Calendar View */}
       {showCalendar && (
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-6">
+        <div className="bg-white/80 border border-[#BCE1F0] rounded-2xl p-6 mb-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <button
               onClick={() => changeMonth(-1)}
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              className="p-2 hover:bg-[#F3F7FE] rounded-lg transition-colors text-slate-700"
             >
               <ChevronLeft size={20} />
             </button>
-            <h3 className="text-lg font-bold">
+            <h3 className="text-lg font-bold text-slate-900">
               {calendarDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
             </h3>
             <button
               onClick={() => changeMonth(1)}
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              className="p-2 hover:bg-[#F3F7FE] rounded-lg transition-colors text-slate-700"
             >
               <ChevronRight size={20} />
             </button>
@@ -1036,14 +1022,14 @@ ALWAYS respond with valid JSON`;
                     }}
                     className={`aspect-square rounded-lg flex flex-col items-center justify-center text-sm transition-all ${
                       isSelectedDay
-                        ? 'bg-purple-600 text-white font-bold ring-2 ring-purple-400'
+                        ? 'bg-[#8488C2] text-white font-bold ring-2 ring-[#BCE1F0]'
                         : isTodayDay 
-                        ? 'bg-indigo-600 text-white font-bold' 
+                        ? 'bg-[#4f46e5] text-white font-bold' 
                         : rate === 100 
-                        ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' 
+                        ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' 
                         : rate > 0 
-                        ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30'
-                        : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                        ? 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                        : 'bg-[#F3F7FE] text-slate-600 hover:bg-white'
                     }`}
                   >
                     <span>{day}</span>
@@ -1058,17 +1044,17 @@ ALWAYS respond with valid JSON`;
             })()}
           </div>
 
-          <div className="flex items-center gap-4 mt-4 text-xs text-slate-400">
+          <div className="flex items-center gap-4 mt-4 text-xs text-slate-600">
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-indigo-600"></div>
+              <div className="w-4 h-4 rounded bg-[#4f46e5]"></div>
               <span>Today</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-green-500/20"></div>
+              <div className="w-4 h-4 rounded bg-emerald-50 border border-emerald-200"></div>
               <span>100%</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-yellow-500/20"></div>
+              <div className="w-4 h-4 rounded bg-amber-50 border border-amber-200"></div>
               <span>Partial</span>
             </div>
           </div>
@@ -1077,14 +1063,14 @@ ALWAYS respond with valid JSON`;
 
       {/* Task List - Category View */}
       {viewMode === 'category' && (
-        <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden mb-6">
+        <div className="bg-white/80 border border-[#BCE1F0] rounded-2xl overflow-hidden mb-6 shadow-sm">
           {Object.keys(groupedTasks).length > 0 ? (
             Object.entries(groupedTasks).map(([category, categoryTasks]) => {
               const categoryInfo = CATEGORIES.find(c => c.value === category) || CATEGORIES[3];
               return (
                 <div key={category}>
-                  <div className="bg-slate-900/50 px-4 py-2 border-b border-white/10">
-                    <h3 className="text-sm font-semibold text-slate-300">
+                  <div className="bg-[#F3F7FE] px-4 py-2 border-b border-[#E0EDFB]">
+                    <h3 className="text-sm font-semibold text-[#4A5A8A]">
                       {categoryInfo.icon} {category}
                     </h3>
                   </div>
@@ -1096,8 +1082,8 @@ ALWAYS respond with valid JSON`;
                     return (
                       <div
                         key={task.id}
-                        className={`p-4 border-b border-white/5 transition-all ${
-                          isDone ? 'bg-green-500/10' : 'hover:bg-white/5'
+                        className={`p-4 border-b border-[#E0EDFB] transition-all ${
+                          isDone ? 'bg-green-50' : 'hover:bg-white'
                         }`}
                       >
                         <div className="flex items-center justify-between">
@@ -1106,17 +1092,17 @@ ALWAYS respond with valid JSON`;
                             onClick={() => toggleTask(task.id)}
                           >
                             {isDone ? (
-                              <CheckCircle2 className="text-green-400" size={24} />
+                              <CheckCircle2 className="text-green-500" size={24} />
                             ) : (
-                              <Circle className="text-slate-500" size={24} />
+                              <Circle className="text-slate-400" size={24} />
                             )}
                             <div className="flex-1">
                               <div className="flex items-center gap-2">
-                                <span className={isDone ? 'line-through text-slate-500' : 'text-white'}>
+                                <span className={isDone ? 'line-through text-slate-500' : 'text-slate-900'}>
                                   {task.title}
                                 </span>
                                 {isScheduled && (
-                                  <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400">
+                                  <span className="text-xs px-2 py-0.5 rounded-full bg-purple-50 text-purple-600 border border-purple-200">
                                     <CalendarDays size={12} className="inline mr-1" />
                                     One-time
                                   </span>
@@ -1124,13 +1110,13 @@ ALWAYS respond with valid JSON`;
                               </div>
                               <div className="flex items-center gap-3 mt-1">
                                 {streak > 0 && !isScheduled && (
-                                  <div className="flex items-center gap-1 text-xs text-orange-400">
+                                  <div className="flex items-center gap-1 text-xs text-orange-600">
                                     <Flame size={14} />
                                     <span>{streak} day{streak !== 1 ? 's' : ''}</span>
                                   </div>
                                 )}
                                 {task.reminder_time && (
-                                  <div className="flex items-center gap-1 text-xs text-slate-400">
+                                  <div className="flex items-center gap-1 text-xs text-slate-500">
                                     <Clock size={12} />
                                     <span>{task.reminder_time}</span>
                                   </div>
@@ -1141,13 +1127,13 @@ ALWAYS respond with valid JSON`;
                           <div className="flex gap-2">
                             <button
                               onClick={() => openEditModal(task)}
-                              className="text-slate-600 hover:text-indigo-400 p-2 transition-colors"
+                              className="text-slate-400 hover:text-[#8488C2] p-2 transition-colors"
                             >
                               <Edit2 size={16} />
                             </button>
                             <button
                               onClick={() => deleteTask(task.id)}
-                              className="text-slate-600 hover:text-red-400 p-2 transition-colors"
+                              className="text-slate-400 hover:text-red-500 p-2 transition-colors"
                             >
                               <Trash2 size={16} />
                             </button>
@@ -1169,7 +1155,7 @@ ALWAYS respond with valid JSON`;
 
       {/* Task List - Timeline View */}
       {viewMode === 'timeline' && (
-        <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden mb-6">
+        <div className="bg-white/80 border border-[#BCE1F0] rounded-2xl overflow-hidden mb-6 shadow-sm">
           {timelineTasks.length > 0 ? (
             timelineTasks.map((task, index) => {
               const isDone = completions.includes(task.id);
@@ -1181,15 +1167,15 @@ ALWAYS respond with valid JSON`;
               return (
                 <div
                   key={task.id}
-                  className={`p-4 border-b border-white/5 transition-all ${
-                    isDone ? 'bg-green-500/10' : 'hover:bg-white/5'
+                  className={`p-4 border-b border-[#E0EDFB] transition-all ${
+                    isDone ? 'bg-green-50' : 'hover:bg-white'
                   }`}
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-20 text-right">
                       {task.reminder_time ? (
                         <div>
-                          <p className="text-sm font-semibold text-white">
+                          <p className="text-sm font-semibold text-slate-900">
                             {task.reminder_time}
                           </p>
                           <p className="text-xs text-slate-500">
@@ -1197,7 +1183,7 @@ ALWAYS respond with valid JSON`;
                           </p>
                         </div>
                       ) : (
-                        <p className="text-xs text-slate-600">No time</p>
+                        <p className="text-xs text-slate-400">No time</p>
                       )}
                     </div>
 
@@ -1205,14 +1191,14 @@ ALWAYS respond with valid JSON`;
                       <div
                         className={`w-3 h-3 rounded-full border-2 ${
                           isDone 
-                            ? 'bg-green-400 border-green-400' 
+                            ? 'bg-green-500 border-green-500' 
                             : status === 'overdue'
-                            ? 'bg-red-400 border-red-400'
-                            : 'bg-slate-700 border-slate-600'
+                            ? 'bg-red-500 border-red-500'
+                            : 'bg-slate-300 border-slate-300'
                         }`}
                       />
                       {index < timelineTasks.length - 1 && (
-                        <div className="w-0.5 h-12 bg-slate-700 my-1" />
+                        <div className="w-0.5 h-12 bg-slate-200 my-1" />
                       )}
                     </div>
 
@@ -1223,16 +1209,16 @@ ALWAYS respond with valid JSON`;
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
-                            <span className={isDone ? 'line-through text-slate-500' : 'text-white font-medium'}>
+                            <span className={isDone ? 'line-through text-slate-500' : 'text-slate-900 font-medium'}>
                               {task.title}
                             </span>
                             {isScheduled && (
-                              <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400">
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-purple-50 text-purple-600 border border-purple-200">
                                 <CalendarDays size={12} className="inline" />
                               </span>
                             )}
                             {!task.reminder_time && (
-                              <span className="text-xs px-2 py-1 rounded-full bg-slate-700 text-slate-400">
+                              <span className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-600">
                                 Flexible
                               </span>
                             )}
@@ -1240,12 +1226,12 @@ ALWAYS respond with valid JSON`;
                           
                           <div className="flex items-center gap-3 mt-1">
                             {streak > 0 && !isScheduled && (
-                              <div className="flex items-center gap-1 text-xs text-orange-400">
+                              <div className="flex items-center gap-1 text-xs text-orange-600">
                                 <Flame size={14} />
                                 <span>{streak} day streak</span>
                               </div>
                             )}
-                            <span className="text-xs text-slate-400">
+                            <span className="text-xs text-slate-500">
                               {CATEGORIES.find(c => c.value === task.category)?.icon} {task.category}
                             </span>
                             {task.reminder_time && !isDone && isToday && (
@@ -1265,7 +1251,7 @@ ALWAYS respond with valid JSON`;
                               e.stopPropagation();
                               openEditModal(task);
                             }}
-                            className="text-slate-600 hover:text-indigo-400 p-2 transition-colors"
+                            className="text-slate-400 hover:text-[#8488C2] p-2 transition-colors"
                           >
                             <Edit2 size={16} />
                           </button>
@@ -1274,7 +1260,7 @@ ALWAYS respond with valid JSON`;
                               e.stopPropagation();
                               deleteTask(task.id);
                             }}
-                            className="text-slate-600 hover:text-red-400 p-2 transition-colors"
+                            className="text-slate-400 hover:text-red-500 p-2 transition-colors"
                           >
                             <Trash2 size={16} />
                           </button>
@@ -1294,12 +1280,12 @@ ALWAYS respond with valid JSON`;
       )}
 
       {/* Add New Task Form */}
-      <form onSubmit={addTask} className="bg-white/5 border border-white/10 rounded-2xl p-4 mb-24">
+      <form onSubmit={addTask} className="bg-white/80 border border-[#BCE1F0] rounded-2xl p-4 mb-24 shadow-sm">
         <div className="flex gap-2 mb-3">
           <input
             type="text"
             placeholder="Add new habit..."
-            className="flex-1 bg-slate-900 border border-white/10 rounded-lg p-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500"
+            className="flex-1 bg-white border border-[#E0EDFB] rounded-lg p-3 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#8488C2]"
             value={newTask}
             onChange={e => setNewTask(e.target.value)}
           />
@@ -1308,7 +1294,7 @@ ALWAYS respond with valid JSON`;
           <select
             value={newCategory}
             onChange={e => setNewCategory(e.target.value)}
-            className="flex-1 bg-slate-900 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-indigo-500"
+            className="flex-1 bg-white border border-[#E0EDFB] rounded-lg p-3 text-slate-900 focus:outline-none focus:border-[#8488C2]"
           >
             {CATEGORIES.map(cat => (
               <option key={cat.value} value={cat.value}>
@@ -1318,7 +1304,7 @@ ALWAYS respond with valid JSON`;
           </select>
           <button
             type="submit"
-            className="bg-indigo-600 px-6 py-3 rounded-lg hover:bg-indigo-500 transition-colors flex items-center gap-2 font-medium"
+            className="bg-[#8488C2] px-6 py-3 rounded-lg hover:bg-[#7378b5] transition-colors flex items-center gap-2 font-medium text-white"
           >
             <Plus size={20} />
             Add
@@ -1332,12 +1318,12 @@ ALWAYS respond with valid JSON`;
       {/* Edit Modal */}
       {editingTask && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <div className="bg-white border border-[#E0EDFB] rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold">Edit Task</h3>
+              <h3 className="text-xl font-bold text-slate-900">Edit Task</h3>
               <button
                 onClick={() => setEditingTask(null)}
-                className="text-slate-400 hover:text-white transition-colors"
+                className="text-slate-400 hover:text-slate-900 transition-colors"
               >
                 <X size={24} />
               </button>
@@ -1345,21 +1331,21 @@ ALWAYS respond with valid JSON`;
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm text-slate-400 mb-2">Task Name</label>
+                <label className="block text-sm text-slate-700 mb-2 font-medium">Task Name</label>
                 <input
                   type="text"
                   value={editTitle}
                   onChange={e => setEditTitle(e.target.value)}
-                  className="w-full bg-slate-800 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-white border border-[#E0EDFB] rounded-lg p-3 text-slate-900 focus:outline-none focus:border-[#8488C2]"
                 />
               </div>
 
               <div>
-                <label className="block text-sm text-slate-400 mb-2">Category</label>
+                <label className="block text-sm text-slate-700 mb-2 font-medium">Category</label>
                 <select
                   value={editCategory}
                   onChange={e => setEditCategory(e.target.value)}
-                  className="w-full bg-slate-800 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-white border border-[#E0EDFB] rounded-lg p-3 text-slate-900 focus:outline-none focus:border-[#8488C2]"
                 >
                   {CATEGORIES.map(cat => (
                     <option key={cat.value} value={cat.value}>
@@ -1370,7 +1356,7 @@ ALWAYS respond with valid JSON`;
               </div>
 
               <div>
-                <label className="block text-sm text-slate-400 mb-2">
+                <label className="block text-sm text-slate-700 mb-2 font-medium">
                   <CalendarDays size={14} className="inline mr-1" />
                   Scheduled Date (leave empty for recurring)
                 </label>
@@ -1378,7 +1364,7 @@ ALWAYS respond with valid JSON`;
                   type="date"
                   value={editScheduledDate}
                   onChange={e => setEditScheduledDate(e.target.value)}
-                  className="w-full bg-slate-800 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-white border border-[#E0EDFB] rounded-lg p-3 text-slate-900 focus:outline-none focus:border-[#8488C2]"
                 />
                 <p className="text-xs text-slate-500 mt-1">
                   Empty = repeats daily | Set date = one-time task
@@ -1386,7 +1372,7 @@ ALWAYS respond with valid JSON`;
               </div>
 
               <div>
-                <label className="block text-sm text-slate-400 mb-2">
+                <label className="block text-sm text-slate-700 mb-2 font-medium">
                   <Clock size={14} className="inline mr-1" />
                   Reminder Time (Optional)
                 </label>
@@ -1394,12 +1380,12 @@ ALWAYS respond with valid JSON`;
                   type="time"
                   value={editReminderTime}
                   onChange={e => setEditReminderTime(e.target.value)}
-                  className="w-full bg-slate-800 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-white border border-[#E0EDFB] rounded-lg p-3 text-slate-900 focus:outline-none focus:border-[#8488C2]"
                 />
               </div>
 
               <div>
-                <label className="block text-sm text-slate-400 mb-2">
+                <label className="block text-sm text-slate-700 mb-2 font-medium">
                   Estimated Duration (minutes)
                 </label>
                 <input
@@ -1409,16 +1395,16 @@ ALWAYS respond with valid JSON`;
                   step="5"
                   value={editDuration}
                   onChange={e => setEditDuration(parseInt(e.target.value))}
-                  className="w-full bg-slate-800 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-white border border-[#E0EDFB] rounded-lg p-3 text-slate-900 focus:outline-none focus:border-[#8488C2]"
                 />
               </div>
 
               <div>
-                <label className="block text-sm text-slate-400 mb-2">Time of Day</label>
+                <label className="block text-sm text-slate-700 mb-2 font-medium">Time of Day</label>
                 <select
                   value={editTimeOfDay}
                   onChange={e => setEditTimeOfDay(e.target.value)}
-                  className="w-full bg-slate-800 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-white border border-[#E0EDFB] rounded-lg p-3 text-slate-900 focus:outline-none focus:border-[#8488C2]"
                 >
                   {TIME_OF_DAY.map(time => (
                     <option key={time.value} value={time.value}>
@@ -1429,12 +1415,12 @@ ALWAYS respond with valid JSON`;
               </div>
 
               {streaks[editingTask.id] > 0 && !editingTask.scheduled_date && (
-                <div className="p-3 bg-orange-500/10 border border-orange-500/20 rounded-lg">
-                  <div className="flex items-center gap-2 text-orange-400">
+                <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                  <div className="flex items-center gap-2 text-orange-600">
                     <Flame size={20} />
                     <div>
                       <p className="font-semibold">{streaks[editingTask.id]} Day Streak!</p>
-                      <p className="text-xs text-slate-400">Keep it going!</p>
+                      <p className="text-xs text-slate-600">Keep it going!</p>
                     </div>
                   </div>
                 </div>
@@ -1443,13 +1429,13 @@ ALWAYS respond with valid JSON`;
               <div className="flex gap-3 pt-4">
                 <button
                   onClick={() => setEditingTask(null)}
-                  className="flex-1 px-4 py-3 bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
+                  className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={saveEdit}
-                  className="flex-1 px-4 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-colors font-medium"
+                  className="flex-1 px-4 py-3 bg-[#8488C2] hover:bg-[#7378b5] text-white rounded-lg transition-colors font-medium"
                 >
                   Save Changes
                 </button>
@@ -1465,7 +1451,7 @@ ALWAYS respond with valid JSON`;
           setShowAIChat(true);
           setHasProactiveSuggestion(false);
         }}
-        className="fixed bottom-6 right-6 bg-gradient-to-r from-indigo-600 to-purple-600 p-4 rounded-full shadow-2xl hover:scale-110 transition-transform z-40 group"
+        className="fixed bottom-6 right-6 bg-gradient-to-r from-[#8488C2] to-[#4A5A8A] p-4 rounded-full shadow-2xl hover:scale-110 transition-transform z-40 group"
       >
         <div className="relative">
           <Brain className="text-white" size={24} />
@@ -1483,14 +1469,14 @@ ALWAYS respond with valid JSON`;
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end md:items-center md:justify-end z-50 p-0 md:p-4">
           <div className="bg-slate-900 border border-white/10 rounded-t-3xl md:rounded-2xl w-full md:w-[420px] h-[85vh] md:h-[600px] flex flex-col shadow-2xl">
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-white/10 bg-gradient-to-r from-indigo-600/20 to-purple-600/20">
+            <div className="flex items-center justify-between p-4 border-b border-white/10 bg-gradient-to-r from-[#8488C2]/40 to-[#4A5A8A]/40">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#8488C2] to-[#4A5A8A] flex items-center justify-center">
                   <Brain size={20} className="text-white" />
                 </div>
                 <div>
-                  <h3 className="font-bold">Routine Assistant</h3>
-                  <p className="text-xs text-slate-400 flex items-center gap-1">
+                  <h3 className="font-bold text-white">Routine Assistant</h3>
+                  <p className="text-xs text-slate-300 flex items-center gap-1">
                     <Sparkles size={12} />
                     AI-Powered
                   </p>
@@ -1510,14 +1496,14 @@ ALWAYS respond with valid JSON`;
                 <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-[85%] ${
                     msg.role === 'user' 
-                      ? 'bg-indigo-600 text-white rounded-2xl rounded-br-sm' 
+                      ? 'bg-[#8488C2] text-white rounded-2xl rounded-br-sm' 
                       : 'bg-white/10 text-slate-200 rounded-2xl rounded-bl-sm'
                   } p-3 shadow-lg`}>
                     <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                     {msg.action && msg.actionLabel && (
                       <button
                         onClick={() => executeAIAction(msg.action)}
-                        className="mt-3 w-full py-2 bg-indigo-500 hover:bg-indigo-400 rounded-lg text-sm font-medium transition-colors"
+                        className="mt-3 w-full py-2 bg-[#4A5A8A] hover:bg-[#8488C2] rounded-lg text-sm font-medium transition-colors text-white"
                       >
                         {msg.actionLabel}
                       </button>
@@ -1539,7 +1525,7 @@ ALWAYS respond with valid JSON`;
             </div>
 
             {/* Input with Voice Button */}
-            <form onSubmit={handleAISubmit} className="p-4 border-t border-white/10 bg-slate-900/50">
+            <form onSubmit={handleAISubmit} className="p-4 border-t border-white/10 bg-slate-900/70">
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -1557,18 +1543,18 @@ ALWAYS respond with valid JSON`;
                   value={aiInput}
                   onChange={e => setAIInput(e.target.value)}
                   placeholder={isListening ? "Listening..." : "Type or speak..."}
-                  className="flex-1 bg-slate-800 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
+                  className="flex-1 bg-slate-800 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-[#BCE1F0] transition-colors"
                   disabled={isAIThinking}
                 />
                 <button
                   type="submit"
                   disabled={!aiInput.trim() || isAIThinking}
-                  className="bg-indigo-600 p-3 rounded-xl hover:bg-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="bg-[#8488C2] p-3 rounded-xl hover:bg-[#7378b5] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Send size={20} className="text-white" />
                 </button>
               </div>
-              <p className="text-xs text-slate-500 mt-2 text-center">
+              <p className="text-xs text-slate-400 mt-2 text-center">
                 {isListening ? '🎤 Listening... Speak now!' : 'Try: "Add workout tomorrow at 7 AM"'}
               </p>
             </form>
