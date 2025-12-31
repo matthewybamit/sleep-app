@@ -17,58 +17,148 @@ export default function SleepTracker() {
   const [showManual, setShowManual] = useState(false);
   const [error, setError] = useState('');
   const [notificationPermission, setNotificationPermission] = useState('default');
+  const [serviceWorkerRegistration, setServiceWorkerRegistration] = useState(null);
+  const [notificationSent, setNotificationSent] = useState(false);
 
   const maxDateTime = new Date().toISOString().slice(0, 16);
 
+  // Register Service Worker
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' })
+        .then((registration) => {
+          console.log('Service Worker registered successfully:', registration);
+          setServiceWorkerRegistration(registration);
+          
+          // Wait for service worker to be ready
+          return navigator.serviceWorker.ready;
+        })
+        .then((registration) => {
+          console.log('Service Worker is ready:', registration);
+          setServiceWorkerRegistration(registration);
+        })
+        .catch((error) => {
+          console.error('Service Worker registration failed:', error);
+        });
+    } else {
+      console.warn('Service Workers are not supported in this browser');
+    }
+  }, []);
+
+  // Initialize sleep tracking and check notification permission
   useEffect(() => {
     const savedSleepStart = localStorage.getItem(STORAGE_KEY);
     if (savedSleepStart) {
       setSleepStart(savedSleepStart);
     }
 
+    // Check notification permission
     if ('Notification' in window) {
       setNotificationPermission(Notification.permission);
-      if (Notification.permission === 'default') {
-        Notification.requestPermission().then((permission) => {
-          setNotificationPermission(permission);
-        });
-      }
     }
 
     fetchLogs();
   }, []);
 
+  // Monitor sleep duration and send notifications
   useEffect(() => {
-    if (!sleepStart) return;
+    if (!sleepStart) {
+      setNotificationSent(false);
+      return;
+    }
 
-    const checkSleepDuration = () => {
+    const checkSleepDuration = async () => {
       const sleepStartTime = new Date(sleepStart);
       const now = new Date();
       const hoursSleeping = differenceInHours(now, sleepStartTime);
 
-      if (hoursSleeping >= MAX_SLEEP_HOURS) {
-        sendWakeUpNotification(hoursSleeping);
+      if (hoursSleeping >= MAX_SLEEP_HOURS && !notificationSent) {
+        await sendWakeUpNotification(hoursSleeping);
+        setNotificationSent(true);
       }
     };
 
+    // Check immediately
     checkSleepDuration();
+    
+    // Then check every 30 minutes
     const interval = setInterval(checkSleepDuration, 30 * 60 * 1000);
+    
     return () => clearInterval(interval);
-  }, [sleepStart]);
+  }, [sleepStart, serviceWorkerRegistration, notificationSent]);
 
-  function sendWakeUpNotification(hours) {
-    if ('Notification' in window && Notification.permission === 'granted') {
-      const notification = new Notification('Time to Wake Up? 🌅', {
+  // Send wake-up notification using Service Worker
+  async function sendWakeUpNotification(hours) {
+    try {
+      // Check if notifications are supported
+      if (!('Notification' in window)) {
+        console.warn('Notifications not supported');
+        return;
+      }
+
+      // Check permission
+      if (Notification.permission !== 'granted') {
+        console.warn('Notification permission not granted');
+        return;
+      }
+
+      // Wait for service worker to be ready
+      if (!serviceWorkerRegistration) {
+        const registration = await navigator.serviceWorker.ready;
+        setServiceWorkerRegistration(registration);
+      }
+
+      const registration = serviceWorkerRegistration || await navigator.serviceWorker.ready;
+
+      // Show notification via Service Worker
+      await registration.showNotification('Time to Wake Up? 🌅', {
         body: `You've been sleeping for ${hours} hours. Don't forget to log your wake time!`,
         icon: '/moon-icon.png',
+        badge: '/moon-badge.png',
         tag: 'sleep-reminder',
         requireInteraction: true,
+        vibrate: [200, 100, 200, 100, 200],
+        timestamp: Date.now(),
+        data: {
+          url: window.location.href,
+          sleepStart: sleepStart
+        }
       });
 
-      notification.onclick = () => {
-        window.focus();
-        notification.close();
-      };
+      console.log('Notification sent successfully');
+    } catch (error) {
+      console.error('Failed to send notification:', error);
+    }
+  }
+
+  // Request notification permission
+  async function requestNotificationPermission() {
+    try {
+      if (!('Notification' in window)) {
+        alert('This browser does not support notifications');
+        return;
+      }
+
+      if (!('serviceWorker' in navigator)) {
+        alert('This browser does not support service workers');
+        return;
+      }
+
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+
+      if (permission === 'granted') {
+        // Ensure service worker is ready
+        if (!serviceWorkerRegistration) {
+          const registration = await navigator.serviceWorker.ready;
+          setServiceWorkerRegistration(registration);
+        }
+        console.log('Notification permission granted');
+      } else if (permission === 'denied') {
+        alert('Notification permission denied. Please enable it in your browser settings.');
+      }
+    } catch (error) {
+      console.error('Error requesting notification permission:', error);
     }
   }
 
@@ -86,6 +176,7 @@ export default function SleepTracker() {
     const timestamp = now.toISOString();
     setSleepStart(timestamp);
     localStorage.setItem(STORAGE_KEY, timestamp);
+    setNotificationSent(false);
   }
 
   async function handleWakeUp() {
@@ -101,6 +192,7 @@ export default function SleepTracker() {
     if (!error) {
       setSleepStart(null);
       localStorage.removeItem(STORAGE_KEY);
+      setNotificationSent(false);
       fetchLogs();
     }
   }
@@ -108,6 +200,7 @@ export default function SleepTracker() {
   function cancelSleep() {
     setSleepStart(null);
     localStorage.removeItem(STORAGE_KEY);
+    setNotificationSent(false);
   }
 
   function fillLastNight() {
@@ -260,26 +353,33 @@ export default function SleepTracker() {
     return `${hours} hr ${mins} min`;
   }
 
+  // Check if running on iOS
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
   return (
     <div className="max-w-3xl mx-auto space-y-8">
       {/* Notification Permission Banner */}
-      {notificationPermission === 'default' && (
+      {notificationPermission !== 'granted' && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 flex items-start gap-3">
           <Bell className="text-yellow-500 flex-shrink-0 mt-1" size={20} />
           <div className="flex-1">
             <p className="text-sm text-slate-700 mb-2">
-              Enable notifications to get reminded if you forget to log your wake time.
+              Enable notifications to get reminded after {MAX_SLEEP_HOURS} hours of sleep.
+              {notificationPermission === 'denied' && ' Please enable in your browser settings.'}
             </p>
-            <button
-              onClick={() => {
-                Notification.requestPermission().then((permission) => {
-                  setNotificationPermission(permission);
-                });
-              }}
-              className="px-4 py-2 bg-yellow-500 text-white hover:bg-yellow-600 rounded-lg text-sm transition-colors"
-            >
-              Enable Notifications
-            </button>
+            {isIOS && (
+              <p className="text-xs text-slate-600 mb-2 bg-blue-50 p-2 rounded">
+                📱 iOS users: Add this app to your home screen for notifications to work.
+              </p>
+            )}
+            {notificationPermission !== 'denied' && (
+              <button
+                onClick={requestNotificationPermission}
+                className="px-4 py-2 bg-yellow-500 text-white hover:bg-yellow-600 rounded-lg text-sm transition-colors"
+              >
+                Enable Notifications
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -500,7 +600,7 @@ export default function SleepTracker() {
           ))}
           {logs.length === 0 && (
             <p className="text-slate-500 text-center py-12 text-lg">
-              No logs yet. Sweet dreams! 😴
+              No logs yet. Sweet dreams! 😴 
             </p>
           )}
         </div>
