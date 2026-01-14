@@ -1,6 +1,5 @@
-// src/Components/Layout.jsx
 import { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   Moon,
@@ -15,9 +14,7 @@ import ZenPsychLogo from '../assets/ZenPsych.png';
 
 export default function Layout({ children }) {
   const location = useLocation();
-  const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [signingOut, setSigningOut] = useState(false);
 
   const NavItem = ({ to, icon: Icon, label, mobile = false }) => {
     const isActive = location.pathname === to;
@@ -44,25 +41,9 @@ export default function Layout({ children }) {
     );
   };
 
-  const handleSignOut = async () => {
-    setSigningOut(true);
+  const handleSignOut = () => {
+    supabase.auth.signOut();
     setIsMobileMenuOpen(false);
-    
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error('Sign out error:', error);
-        alert('Error signing out. Please try again.');
-      } else {
-        // Force navigation to login
-        navigate('/login', { replace: true });
-      }
-    } catch (err) {
-      console.error('Unexpected error during sign out:', err);
-      alert('An unexpected error occurred. Please try again.');
-    } finally {
-      setSigningOut(false);
-    }
   };
 
   return (
@@ -135,17 +116,18 @@ export default function Layout({ children }) {
         {/* Sign Out Button */}
         <button
           onClick={handleSignOut}
-          disabled={signingOut}
-          className="flex items-center gap-3 p-3 text-[#E3F2FB] hover:text-red-100 transition-colors mt-auto rounded-xl hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-3 p-3 text-[#E3F2FB] hover:text-red-100 transition-colors mt-auto rounded-xl hover:bg-white/10"
         >
           <LogOut size={20} />
-          <span>{signingOut ? 'Signing out...' : 'Sign Out'}</span>
+          <span>Sign Out</span>
         </button>
       </aside>
 
       {/* Main Content */}
       <main className="flex-1 lg:ml-64 pt-20 lg:pt-8 p-4 sm:p-6 lg:p-8 overflow-y-auto">
-        {children}
+  
+          {children}
+ 
       </main>
     </div>
   );

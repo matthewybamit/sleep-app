@@ -12,14 +12,35 @@ export default function ResetPassword() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+  const [isValidRecovery, setIsValidRecovery] = useState(false);
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
     // Check if this is a valid password reset session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        navigate('/login');
+    const checkRecoverySession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        // Check if this is specifically a recovery session
+        // Password reset links have a special token type
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const type = hashParams.get('type');
+        
+        if (type === 'recovery' && session) {
+          setIsValidRecovery(true);
+        } else {
+          // Not a valid recovery session, redirect to login
+          navigate('/login', { replace: true });
+        }
+      } catch (err) {
+        console.error('Error checking recovery session:', err);
+        navigate('/login', { replace: true });
+      } finally {
+        setChecking(false);
       }
-    });
+    };
+
+    checkRecoverySession();
   }, [navigate]);
 
   const handleResetPassword = async (e) => {
@@ -58,6 +79,18 @@ export default function ResetPassword() {
       setLoading(false);
     }
   };
+
+  // Show loading while checking recovery session
+  if (checking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-[#BCE1F0] to-[#8488C2]">
+        <div className="bg-white/10 backdrop-blur-lg border border-[#8488C2]/40 p-8 rounded-2xl w-full max-w-md shadow-2xl text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#8488C2] border-t-transparent mx-auto mb-4"></div>
+          <p className="text-slate-600">Verifying reset link...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (success) {
     return (
