@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Moon,
@@ -14,7 +14,9 @@ import ZenPsychLogo from '../assets/ZenPsych.png';
 
 export default function Layout({ children }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const NavItem = ({ to, icon: Icon, label, mobile = false }) => {
     const isActive = location.pathname === to;
@@ -41,9 +43,25 @@ export default function Layout({ children }) {
     );
   };
 
-  const handleSignOut = () => {
-    supabase.auth.signOut();
+  const handleSignOut = async () => {
+    if (isLoggingOut) return;
+    
+    setIsLoggingOut(true);
     setIsMobileMenuOpen(false);
+    
+    try {
+      // Clear Supabase session
+      await supabase.auth.signOut();
+      
+      // Force navigate after a short delay
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 100);
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Force logout anyway
+      window.location.href = '/login';
+    }
   };
 
   return (
@@ -116,18 +134,17 @@ export default function Layout({ children }) {
         {/* Sign Out Button */}
         <button
           onClick={handleSignOut}
-          className="flex items-center gap-3 p-3 text-[#E3F2FB] hover:text-red-100 transition-colors mt-auto rounded-xl hover:bg-white/10"
+          disabled={isLoggingOut}
+          className="flex items-center gap-3 p-3 text-[#E3F2FB] hover:text-red-100 transition-colors mt-auto rounded-xl hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <LogOut size={20} />
-          <span>Sign Out</span>
+          <span>{isLoggingOut ? 'Signing out...' : 'Sign Out'}</span>
         </button>
       </aside>
 
       {/* Main Content */}
       <main className="flex-1 lg:ml-64 pt-20 lg:pt-8 p-4 sm:p-6 lg:p-8 overflow-y-auto">
-  
-          {children}
- 
+        {children}
       </main>
     </div>
   );

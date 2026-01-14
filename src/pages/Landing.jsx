@@ -26,11 +26,22 @@ export default function Landing() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleLogout = async () => {
+const handleLogout = async () => {
+  setDropdownOpen(false);
+  
+  try {
     await supabase.auth.signOut();
-    setDropdownOpen(false);
-    navigate('/');
-  };
+    
+    // Force page reload to clear all state
+    setTimeout(() => {
+      window.location.href = '/';
+    }, 100);
+  } catch (error) {
+    console.error('Logout error:', error);
+    window.location.href = '/';
+  }
+};
+
 
   const features = [
     {
