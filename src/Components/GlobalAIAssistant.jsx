@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useAI } from '../context/AIContext';
 import { supabase } from '../lib/supabase';
-import { Brain, Send, X, Mic, MicOff, Sparkles } from 'lucide-react';
+import { Brain, Send, X, Mic, MicOff, Sparkles, MapPin } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { differenceInDays, isWeekend } from 'date-fns';
 
@@ -20,19 +20,172 @@ export default function GlobalAIAssistant() {
   const location = useLocation();
 
   const [userLocation, setUserLocation] = useState({
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    timezone: null,
     city: null,
-    country: null
+    country: null,
+    countryCode: null,
+    latitude: null,
+    longitude: null,
+    isDetecting: true
   });
 
-  // Initialize speech recognition
+  // Auto-detect timezone and location with multiple fallbacks
   useEffect(() => {
+    const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    
+    setUserLocation(prev => ({
+      ...prev,
+      timezone: detectedTimezone,
+      isDetecting: true
+    }));
+
+    async function detectLocation() {
+      try {
+        console.log('🌍 Attempting location detection...');
+        const response = await fetch('https://freeipapi.com/api/json');
+        const data = await response.json();
+        
+        console.log('📍 Location data received:', data);
+        
+        if (data && data.countryCode) {
+          setUserLocation({
+            timezone: data.timeZone || detectedTimezone,
+            city: data.cityName || data.regionName,
+            country: data.countryName,
+            countryCode: data.countryCode,
+            latitude: data.latitude,
+            longitude: data.longitude,
+            isDetecting: false
+          });
+          console.log('✅ Location set to:', data.countryCode, data.countryName);
+          return;
+        }
+        
+        console.log('⚠️ Primary API failed, trying fallback...');
+        const fallbackResponse = await fetch('https://api.country.is/');
+        const fallbackData = await fallbackResponse.json();
+        
+        console.log('📍 Fallback data:', fallbackData);
+        
+        if (fallbackData && fallbackData.country) {
+          const timezoneToCountry = {
+            'Asia/Manila': { code: 'PH', name: 'Philippines', city: 'Metro Manila' },
+            'America/New_York': { code: 'US', name: 'United States', city: 'New York' },
+            'America/Los_Angeles': { code: 'US', name: 'United States', city: 'Los Angeles' },
+            'America/Chicago': { code: 'US', name: 'United States', city: 'Chicago' },
+            'Europe/London': { code: 'GB', name: 'United Kingdom', city: 'London' },
+            'Asia/Kolkata': { code: 'IN', name: 'India', city: 'New Delhi' },
+            'Asia/Tokyo': { code: 'JP', name: 'Japan', city: 'Tokyo' },
+            'Asia/Singapore': { code: 'SG', name: 'Singapore', city: 'Singapore' },
+            'Australia/Sydney': { code: 'AU', name: 'Australia', city: 'Sydney' }
+          };
+          
+          const locationFromTz = timezoneToCountry[detectedTimezone];
+          
+          setUserLocation({
+            timezone: detectedTimezone,
+            city: locationFromTz?.city || 'Unknown',
+            country: locationFromTz?.name || fallbackData.country,
+            countryCode: fallbackData.country,
+            latitude: null,
+            longitude: null,
+            isDetecting: false
+          });
+          console.log('✅ Fallback location set to:', fallbackData.country);
+          return;
+        }
+        
+        console.log('⚠️ All APIs failed, using timezone detection...');
+        const timezoneMap = {
+          'Asia/Manila': { code: 'PH', name: 'Philippines', city: 'Metro Manila' },
+          'America/New_York': { code: 'US', name: 'United States', city: 'New York' },
+          'America/Los_Angeles': { code: 'US', name: 'United States', city: 'Los Angeles' },
+          'America/Chicago': { code: 'US', name: 'United States', city: 'Chicago' },
+          'America/Denver': { code: 'US', name: 'United States', city: 'Denver' },
+          'Europe/London': { code: 'GB', name: 'United Kingdom', city: 'London' },
+          'Asia/Kolkata': { code: 'IN', name: 'India', city: 'Mumbai' },
+          'Asia/Tokyo': { code: 'JP', name: 'Japan', city: 'Tokyo' },
+          'Asia/Singapore': { code: 'SG', name: 'Singapore', city: 'Singapore' },
+          'Asia/Dubai': { code: 'AE', name: 'United Arab Emirates', city: 'Dubai' },
+          'Australia/Sydney': { code: 'AU', name: 'Australia', city: 'Sydney' },
+          'America/Toronto': { code: 'CA', name: 'Canada', city: 'Toronto' },
+          'Asia/Kuala_Lumpur': { code: 'MY', name: 'Malaysia', city: 'Kuala Lumpur' },
+          'Asia/Bangkok': { code: 'TH', name: 'Thailand', city: 'Bangkok' },
+          'Asia/Jakarta': { code: 'ID', name: 'Indonesia', city: 'Jakarta' },
+          'Asia/Hong_Kong': { code: 'HK', name: 'Hong Kong', city: 'Hong Kong' }
+        };
+        
+        const detected = timezoneMap[detectedTimezone] || { 
+          code: 'US', 
+          name: 'United States', 
+          city: 'Unknown' 
+        };
+        
+        setUserLocation({
+          timezone: detectedTimezone,
+          city: detected.city,
+          country: detected.name,
+          countryCode: detected.code,
+          latitude: null,
+          longitude: null,
+          isDetecting: false
+        });
+        console.log('✅ Timezone-based location set to:', detected.code, detected.name);
+        
+      } catch (error) {
+        console.error('❌ Location detection failed:', error);
+        
+        const timezoneMap = {
+          'Asia/Manila': { code: 'PH', name: 'Philippines', city: 'Metro Manila' },
+          'America/New_York': { code: 'US', name: 'United States', city: 'New York' },
+          'America/Los_Angeles': { code: 'US', name: 'United States', city: 'Los Angeles' },
+          'America/Chicago': { code: 'US', name: 'United States', city: 'Chicago' },
+          'Europe/London': { code: 'GB', name: 'United Kingdom', city: 'London' },
+          'Asia/Kolkata': { code: 'IN', name: 'India', city: 'Mumbai' },
+          'Asia/Tokyo': { code: 'JP', name: 'Japan', city: 'Tokyo' },
+          'Asia/Singapore': { code: 'SG', name: 'Singapore', city: 'Singapore' }
+        };
+        
+        const detected = timezoneMap[detectedTimezone] || { 
+          code: 'PH', 
+          name: 'Philippines', 
+          city: 'Metro Manila' 
+        };
+        
+        setUserLocation({
+          timezone: detectedTimezone,
+          city: detected.city,
+          country: detected.name,
+          countryCode: detected.code,
+          latitude: null,
+          longitude: null,
+          isDetecting: false
+        });
+        console.log('✅ Error fallback - location set to:', detected.code);
+      }
+    }
+
+    detectLocation();
+  }, []);
+
+  // Initialize speech recognition with locale-based language
+  useEffect(() => {
+    if (!userLocation.countryCode || userLocation.isDetecting) return;
+
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       const recognitionInstance = new SpeechRecognition();
       recognitionInstance.continuous = false;
       recognitionInstance.interimResults = false;
-      recognitionInstance.lang = 'en-US';
+      
+      const languageMap = {
+        'PH': 'en-PH', 'US': 'en-US', 'GB': 'en-GB', 'IN': 'en-IN',
+        'AU': 'en-AU', 'CA': 'en-CA', 'SG': 'en-SG', 'MY': 'en-MY',
+        'FR': 'fr-FR', 'ES': 'es-ES', 'DE': 'de-DE', 'JP': 'ja-JP',
+        'CN': 'zh-CN', 'KR': 'ko-KR'
+      };
+      
+      recognitionInstance.lang = languageMap[userLocation.countryCode] || 'en-US';
 
       recognitionInstance.onresult = (event) => {
         const transcript = event.results[0][0].transcript;
@@ -45,33 +198,225 @@ export default function GlobalAIAssistant() {
 
       setRecognition(recognitionInstance);
     }
-  }, []);
+  }, [userLocation.countryCode, userLocation.isDetecting]);
 
-  // Get user location
-  useEffect(() => {
-    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          try {
-            const response = await fetch(
-              `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${position.coords.latitude}&longitude=${position.coords.longitude}&localityLanguage=en`
-            );
-            const data = await response.json();
-            setUserLocation({
-              timezone,
-              city: data.city || data.locality,
-              country: data.countryName
-            });
-          } catch (error) {
-            setUserLocation({ timezone, city: null, country: null });
+  // Crisis detection and country-specific hotlines
+  function detectCrisisAndGetHotlines(userInput, countryCode) {
+    const crisisKeywords = [
+      'kill myself', 'suicide', 'want to die', 'end my life', 'hurt myself',
+      'self harm', 'no reason to live', 'better off dead', 'suicidal',
+      'gusto kong mamatay', 'papatayin ko sarili ko', 'ayoko na mabuhay',
+      'self-harm', 'kill me', 'ending it all', 'can\'t go on'
+    ];
+
+    const isCrisis = crisisKeywords.some(keyword => 
+      userInput.toLowerCase().includes(keyword)
+    );
+
+    if (!isCrisis) return null;
+
+    console.log('🚨 CRISIS DETECTED');
+    console.log('User country code:', countryCode);
+    console.log('User location:', userLocation);
+
+    const hotlines = {
+      'PH': {
+        country: 'Philippines',
+        primary: [
+          { 
+            name: 'NCMH Crisis Hotline', 
+            number: '1553', 
+            hours: '24/7', 
+            mobile: '0917-899-8727, 0919-057-1553',
+            description: 'Free mental health crisis support'
+          },
+          { 
+            name: 'DOH Hopeline', 
+            number: '2919 (Globe/TM)', 
+            hours: '24/7', 
+            landline: '(02) 8804-4673',
+            mobile: '0917-558-4673, 0918-873-4673',
+            description: 'Suicide prevention and emotional support'
+          },
+          { 
+            name: 'In Touch Community Services', 
+            number: '(02) 8893-7603', 
+            hours: '24/7', 
+            mobile: '0917-800-1123, 0922-893-8944',
+            description: 'Free anonymous crisis intervention'
           }
-        },
-        () => setUserLocation({ timezone, city: null, country: null })
-      );
-    }
-  }, []);
+        ],
+        emergency: '911'
+      },
+      'US': {
+        country: 'United States',
+        primary: [
+          { 
+            name: '988 Suicide & Crisis Lifeline', 
+            number: '988', 
+            hours: '24/7',
+            description: 'Free and confidential support'
+          },
+          { 
+            name: 'Crisis Text Line', 
+            number: 'Text HOME to 741741', 
+            hours: '24/7',
+            description: 'Text-based crisis support'
+          }
+        ],
+        emergency: '911'
+      },
+      'GB': {
+        country: 'United Kingdom',
+        primary: [
+          { 
+            name: 'Samaritans', 
+            number: '116 123', 
+            hours: '24/7',
+            description: 'Free to call from any phone'
+          },
+          { 
+            name: 'Crisis Text Line', 
+            number: 'Text SHOUT to 85258', 
+            hours: '24/7',
+            description: 'Free 24/7 text support'
+          }
+        ],
+        emergency: '999'
+      },
+      'IN': {
+        country: 'India',
+        primary: [
+          { 
+            name: 'AASRA', 
+            number: '9820466726', 
+            hours: '24/7',
+            description: 'Suicide prevention helpline'
+          },
+          { 
+            name: 'Vandrevala Foundation', 
+            number: '1860-2662-345', 
+            hours: '24/7',
+            description: 'Mental health support'
+          }
+        ],
+        emergency: '112'
+      },
+      'AU': {
+        country: 'Australia',
+        primary: [
+          { 
+            name: 'Lifeline', 
+            number: '13 11 14', 
+            hours: '24/7',
+            description: 'Crisis support and suicide prevention'
+          },
+          { 
+            name: 'Beyond Blue', 
+            number: '1300 22 4636', 
+            hours: '24/7',
+            description: 'Mental health support'
+          }
+        ],
+        emergency: '000'
+      },
+      'CA': {
+        country: 'Canada',
+        primary: [
+          { 
+            name: 'Talk Suicide Canada', 
+            number: '1-833-456-4566', 
+            hours: '24/7',
+            description: 'Free suicide prevention service'
+          },
+          { 
+            name: 'Crisis Text Line', 
+            number: 'Text CONNECT to 686868', 
+            hours: '24/7',
+            description: 'Text-based support'
+          }
+        ],
+        emergency: '911'
+      },
+      'SG': {
+        country: 'Singapore',
+        primary: [
+          { 
+            name: 'Samaritans of Singapore', 
+            number: '1767', 
+            hours: '24/7',
+            description: 'Confidential emotional support'
+          },
+          { 
+            name: 'Institute of Mental Health', 
+            number: '6389-2222', 
+            hours: '24/7',
+            description: 'Mental health helpline'
+          }
+        ],
+        emergency: '999'
+      },
+      'MY': {
+        country: 'Malaysia',
+        primary: [
+          { 
+            name: 'Befrienders KL', 
+            number: '03-7627-2929', 
+            hours: '24/7',
+            description: 'Emotional support service'
+          },
+          { 
+            name: 'Talian Kasih', 
+            number: '15999', 
+            hours: '24/7',
+            description: 'Government welfare helpline'
+          }
+        ],
+        emergency: '999'
+      },
+      'JP': {
+        country: 'Japan',
+        primary: [
+          { 
+            name: 'TELL Lifeline', 
+            number: '03-5774-0992', 
+            hours: '9am-11pm daily',
+            description: 'English/Japanese support'
+          },
+          { 
+            name: 'Inochi no Denwa', 
+            number: '0570-783-556', 
+            hours: '24/7',
+            description: 'Japanese crisis line'
+          }
+        ],
+        emergency: '110'
+      },
+      'NZ': {
+        country: 'New Zealand',
+        primary: [
+          { 
+            name: 'Lifeline Aotearoa', 
+            number: '0800 543 354', 
+            hours: '24/7',
+            description: 'Free counselling'
+          },
+          { 
+            name: '1737', 
+            number: '1737', 
+            hours: '24/7',
+            description: 'Need to talk? Free call or text'
+          }
+        ],
+        emergency: '111'
+      }
+    };
+
+    const selectedHotlines = hotlines[countryCode] || hotlines['PH'];
+    console.log('📞 Selected hotlines for:', selectedHotlines.country);
+    
+    return selectedHotlines;
+  }
 
   function toggleVoiceInput() {
     if (!recognition) {
@@ -90,35 +435,88 @@ export default function GlobalAIAssistant() {
 
   async function handleAISubmit(e) {
     e.preventDefault();
-    if (!aiInput.trim()) return;
+    if (!aiInput.trim() || userLocation.isDetecting) return;
     
     const userMessage = { role: 'user', content: aiInput };
     setAIMessages(prev => [...prev, userMessage]);
     const userInputText = aiInput;
     setAIInput('');
+    
+    // CRITICAL: Check for crisis keywords FIRST
+    const crisisHotlines = detectCrisisAndGetHotlines(userInputText, userLocation.countryCode);
+    
+    if (crisisHotlines) {
+      const hotlinesList = crisisHotlines.primary.map((hotline, idx) => {
+        let numbers = `📞 ${hotline.number}`;
+        if (hotline.mobile) numbers += `\n📱 Mobile: ${hotline.mobile}`;
+        if (hotline.landline) numbers += `\n☎️ Landline: ${hotline.landline}`;
+        return `**${idx + 1}. ${hotline.name}**\n${numbers}\n${hotline.description ? `ℹ️ ${hotline.description}` : ''}\n⏰ ${hotline.hours}`;
+      }).join('\n\n');
+
+      const crisisMessage = `🚨 **I'm really glad you reached out. Your life matters.**
+
+I'm here to listen, but I want to make sure you get the immediate support you deserve. Please contact these professional crisis hotlines in **${crisisHotlines.country}**:
+
+${hotlinesList}
+
+🆘 **Emergency Services**: ${crisisHotlines.emergency}
+
+**These trained professionals are available right now** and can provide the help you need. You don't have to go through this alone.
+
+Would you like to talk about what's bothering you? I'm here to listen, but please reach out to the hotlines above for immediate professional support. 💙
+
+*You are not alone. Help is available 24/7.*`;
+
+      setAIMessages(prev => [...prev, {
+        role: 'assistant',
+        content: crisisMessage,
+        action: null,
+        actionLabel: null
+      }]);
+      
+      return;
+    }
+    
     setIsAIThinking(true);
     
     try {
-      // Gather all user data INCLUDING NEW INSIGHTS
       const userData = await gatherUserData();
       
       const now = new Date();
-      const hour = now.getHours();
+      const localTime = new Date(now.toLocaleString('en-US', { timeZone: userLocation.timezone }));
+      const hour = localTime.getHours();
       const timeOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : hour < 21 ? 'evening' : 'night';
-      const dayOfWeek = now.toLocaleDateString('en-US', { weekday: 'long' });
-      const todayDate = now.toISOString().split('T')[0];
-      const tomorrowDate = new Date(now.getTime() + 86400000).toISOString().split('T')[0];
+      const dayOfWeek = localTime.toLocaleDateString('en-US', { weekday: 'long', timeZone: userLocation.timezone });
+      const todayDate = localTime.toLocaleDateString('en-CA', { timeZone: userLocation.timezone });
       
-      const systemPrompt = `You are ZenPsych AI - an advanced Sleep & Routine Intelligence Assistant with deep analytics capabilities.
+      const tomorrow = new Date(localTime);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowDate = tomorrow.toLocaleDateString('en-CA', { timeZone: userLocation.timezone });
+      
+      const offset = -localTime.getTimezoneOffset() / 60;
+      const utcOffset = `UTC${offset >= 0 ? '+' : ''}${offset}`;
+      
+      const culturalContext = getCulturalContext(userLocation.countryCode, userLocation.country);
+      
+      const systemPrompt = `You are ZenPsych AI - an advanced Sleep & Routine Intelligence Assistant with global cultural awareness and deep analytics capabilities.
 
-CURRENT CONTEXT:
+CURRENT CONTEXT (USER'S LOCAL TIME):
 - Current Page: ${location.pathname}
-- Current Time: ${hour}:00 (${timeOfDay})
+- Current Time: ${localTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: userLocation.timezone })} (${timeOfDay})
 - Day: ${dayOfWeek}
 - Today: ${todayDate}
 - Tomorrow: ${tomorrowDate}
-- Timezone: ${userLocation.timezone}
-${userLocation.city ? `- Location: ${userLocation.city}, ${userLocation.country}` : ''}
+- Timezone: ${userLocation.timezone} (${utcOffset})
+- Location: ${userLocation.city ? `${userLocation.city}, ` : ''}${userLocation.country}
+- Country Code: ${userLocation.countryCode}
+
+${culturalContext}
+
+**CRISIS PROTOCOL:**
+- Crisis situations (suicide, self-harm) are already handled by the frontend
+- If user expresses distress, be empathetic and supportive
+- Remind them that professional help is available
+- Focus on sleep and wellness support within your scope
 
 USER SLEEP ANALYTICS (LAST 7 DAYS):
 ${JSON.stringify(userData.sleepAnalytics, null, 2)}
@@ -127,7 +525,6 @@ USER ROUTINE DATA:
 ${JSON.stringify(userData.routine, null, 2)}
 
 AVAILABLE ACTIONS (ALL AUTO-EXECUTE):
-
 1. SLEEP_NOW - Start sleep tracking
 2. WAKE_UP - End sleep tracking
 3. LOG_PAST_SLEEP - Log historical sleep
@@ -140,31 +537,26 @@ INTELLIGENCE RULES:
 
 **Sleep Coaching:**
 - Reference actual sleep quality score (${userData.sleepAnalytics.qualityScore}/100)
-- Mention sleep debt if > 2 hours: ${userData.sleepAnalytics.sleepDebt}
+- Mention sleep debt if > 2 hours: ${userData.sleepAnalytics.sleepDebt}h
 - Celebrate streaks: ${userData.sleepAnalytics.currentStreak} days
-- Warn about inconsistency if bedtime variance > 60 min: ${userData.sleepAnalytics.bedtimeConsistency}
-- Compare weekday vs weekend patterns: ${userData.sleepAnalytics.weekdayAvg} vs ${userData.sleepAnalytics.weekendAvg}
+- Warn about inconsistency if bedtime variance > 60 min: ${userData.sleepAnalytics.bedtimeConsistency} min
+- Compare weekday vs weekend: ${userData.sleepAnalytics.weekdayAvg}h vs ${userData.sleepAnalytics.weekendAvg}h
 
-**Smart Recommendations:**
-- If quality score < 60: "Your sleep quality is ${userData.sleepAnalytics.qualityScore}/100. Let's improve that!"
-- If sleep debt > 2: "You have ${userData.sleepAnalytics.sleepDebt} hours of sleep debt. Consider catching up."
-- If streak > 7: "Amazing! You're on a ${userData.sleepAnalytics.currentStreak}-day streak! 🔥"
-- If inconsistent (>60 min variance): "Your bedtime varies by ${userData.sleepAnalytics.bedtimeConsistency} min. Try consistency."
+**Cultural Awareness:**
+- Adapt greetings and language to user's culture
+- Consider local sleep patterns and norms
+- Respect cultural time preferences
+- Use culturally relevant examples
 
-**Context-Aware Responses:**
-- When asked "How am I doing?" → Provide full analysis (quality score, debt, streak, recommendations)
-- When asked "Why am I tired?" → Analyze sleep debt, consistency, recent patterns
-- When asked "Should I sleep more?" → Compare avg vs target, mention debt
-- When asked about patterns → Reference weekday vs weekend, trends
-
-**Time Parsing:**
-- "10 PM" → "22:00"
+**Time Parsing (User's Local Time):**
+- "10 PM" → "22:00" in user's timezone
 - "tomorrow" → ${tomorrowDate}
-- "last night" → Yesterday 22:00 to today 06:00
+- "last night" → Yesterday evening to today morning
+- Parse relative times based on current local time
 
 RESPONSE FORMAT (ALWAYS JSON):
 {
-  "message": "Friendly, data-driven response with specific metrics and actionable advice",
+  "message": "Friendly, culturally-aware response with specific metrics and actionable advice",
   "action": {...action object...} or null,
   "actionLabel": null,
   "autoExecute": true
@@ -174,23 +566,15 @@ EXAMPLES:
 
 User: "How is my sleep?"
 Response: {
-  "message": "📊 Your sleep quality score is ${userData.sleepAnalytics.qualityScore}/100! You're averaging ${userData.sleepAnalytics.avgDuration} hours (target: ${TARGET_SLEEP_HOURS}h). ${userData.sleepAnalytics.sleepDebt > 0 ? `You have ${userData.sleepAnalytics.sleepDebt}h of sleep debt.` : 'No sleep debt!'} ${userData.sleepAnalytics.currentStreak > 0 ? `🔥 ${userData.sleepAnalytics.currentStreak}-day streak!` : ''} Want to see detailed insights?",
+  "message": "📊 Your sleep quality score is ${userData.sleepAnalytics.qualityScore}/100! You're averaging ${userData.sleepAnalytics.avgDuration} hours (target: ${TARGET_SLEEP_HOURS}h). ${userData.sleepAnalytics.sleepDebt > 0 ? `You have ${userData.sleepAnalytics.sleepDebt}h of sleep debt.` : 'No sleep debt! 👏'} ${userData.sleepAnalytics.currentStreak > 0 ? `🔥 ${userData.sleepAnalytics.currentStreak}-day streak!` : ''} Want detailed insights?",
   "action": {"type": "NAVIGATE", "params": {"page": "/insights"}},
-  "actionLabel": null,
-  "autoExecute": false
-}
-
-User: "Why am I tired?"
-Response: {
-  "message": "Let me analyze... ${userData.sleepAnalytics.sleepDebt > 2 ? `You have ${userData.sleepAnalytics.sleepDebt}h of sleep debt - that's likely why!` : ''} ${userData.sleepAnalytics.bedtimeConsistency > 60 ? `Your bedtime varies by ${userData.sleepAnalytics.bedtimeConsistency} min, disrupting your rhythm.` : ''} ${userData.sleepAnalytics.avgDuration < TARGET_SLEEP_HOURS ? `You're only averaging ${userData.sleepAnalytics.avgDuration}h vs the ${TARGET_SLEEP_HOURS}h target.` : ''} Need specific recommendations?",
-  "action": null,
   "actionLabel": null,
   "autoExecute": false
 }
 
 User: "I'm going to sleep"
 Response: {
-  "message": "😴 Sleep mode activated at ${now.toLocaleTimeString()}! Sweet dreams! (Your avg bedtime is ${userData.sleepAnalytics.avgBedtime})",
+  "message": "😴 Sleep mode activated at ${localTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}! Sweet dreams! (Your avg bedtime is ${userData.sleepAnalytics.avgBedtime})",
   "action": {"type": "SLEEP_NOW", "params": {}},
   "actionLabel": null,
   "autoExecute": true
@@ -198,13 +582,13 @@ Response: {
 
 User: "I woke up"
 Response: {
-  "message": "☀️ Good morning! I've logged your sleep. ${userData.sleepAnalytics.currentStreak > 0 ? `Streak: ${userData.sleepAnalytics.currentStreak + 1} days! 🔥` : ''} Want to see how you did?",
+  "message": "☀️ Good ${timeOfDay}! I've logged your sleep. ${userData.sleepAnalytics.currentStreak > 0 ? `Streak: ${userData.sleepAnalytics.currentStreak + 1} days! 🔥` : ''} Want to see how you did?",
   "action": {"type": "WAKE_UP", "params": {}},
   "actionLabel": null,
   "autoExecute": true
 }
 
-ALWAYS respond with valid JSON. Use actual data. Be insightful and encouraging!`;
+ALWAYS respond with valid JSON. Use user's local time. Be culturally aware and encouraging!`;
 
       const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
@@ -257,10 +641,86 @@ ALWAYS respond with valid JSON. Use actual data. Be insightful and encouraging!`
     }
   }
 
+  function getCulturalContext(countryCode, countryName) {
+    const culturalData = {
+      'PH': {
+        bedtime: '10 PM - 12 AM',
+        wakeTime: '6 AM - 8 AM',
+        tips: 'Hot/humid climate - recommend aircon/fan and cooler room temperature (24-26°C)',
+        language: 'Taglish accepted',
+        siesta: 'Siesta culture common in some regions'
+      },
+      'US': {
+        bedtime: '10 PM - 11 PM',
+        wakeTime: '6 AM - 7 AM',
+        tips: 'Standard sleep hygiene applies',
+        language: 'English',
+        siesta: 'Not common'
+      },
+      'IN': {
+        bedtime: '10 PM - 11 PM',
+        wakeTime: '6 AM - 7 AM',
+        tips: 'Hot climate in many regions - recommend cooler sleeping environment',
+        language: 'Hindi/English mix common',
+        siesta: 'Afternoon rest common in some regions'
+      },
+      'JP': {
+        bedtime: '11 PM - 12 AM',
+        wakeTime: '6 AM - 7 AM',
+        tips: 'Late work culture - encourage earlier bedtime for health',
+        language: 'Japanese/English',
+        siesta: 'Inemuri (power naps) culturally acceptable'
+      },
+      'GB': {
+        bedtime: '10:30 PM - 11:30 PM',
+        wakeTime: '6:30 AM - 7:30 AM',
+        tips: 'Standard sleep hygiene',
+        language: 'British English',
+        siesta: 'Not common'
+      },
+      'AU': {
+        bedtime: '10 PM - 11 PM',
+        wakeTime: '6 AM - 7 AM',
+        tips: 'Hot climate - ensure proper cooling',
+        language: 'Australian English',
+        siesta: 'Not common'
+      },
+      'SG': {
+        bedtime: '11 PM - 12 AM',
+        wakeTime: '6:30 AM - 7:30 AM',
+        tips: 'Hot/humid climate - aircon strongly recommended',
+        language: 'Singlish accepted',
+        siesta: 'Not common'
+      },
+      'CA': {
+        bedtime: '10 PM - 11 PM',
+        wakeTime: '6:30 AM - 7:30 AM',
+        tips: 'Varies by season - winter darkness affects sleep',
+        language: 'English/French',
+        siesta: 'Not common'
+      }
+    };
+
+    const data = culturalData[countryCode] || {
+      bedtime: '10 PM - 11 PM',
+      wakeTime: '6 AM - 7 AM',
+      tips: 'Standard sleep hygiene applies',
+      language: 'English',
+      siesta: 'Varies by region'
+    };
+
+    return `CULTURAL CONTEXT FOR ${countryName.toUpperCase()}:
+- Common bedtime: ${data.bedtime}
+- Common wake time: ${data.wakeTime}
+- Sleep tips: ${data.tips}
+- Language preference: ${data.language}
+- Cultural note: ${data.siesta}`;
+  }
+
   async function gatherUserData() {
-    const today = new Date().toISOString().split('T')[0];
+    const localNow = new Date(new Date().toLocaleString('en-US', { timeZone: userLocation.timezone }));
+    const today = localNow.toLocaleDateString('en-CA', { timeZone: userLocation.timezone });
     
-    // Get routine data
     const { data: tasks } = await supabase
       .from('routine_tasks')
       .select('*')
@@ -273,7 +733,6 @@ ALWAYS respond with valid JSON. Use actual data. Be insightful and encouraging!`
       .eq('user_id', user.id)
       .eq('completed_date', today);
 
-    // Get ALL sleep logs for comprehensive analysis
     const { data: sleepLogs } = await supabase
       .from('sleep_logs')
       .select('*')
@@ -287,7 +746,6 @@ ALWAYS respond with valid JSON. Use actual data. Be insightful and encouraging!`
       .eq('id', user.id)
       .single();
 
-    // Check for active sleep session
     const sleepStart = localStorage.getItem(STORAGE_KEY);
     let currentSleepDuration = null;
     if (sleepStart) {
@@ -299,7 +757,6 @@ ALWAYS respond with valid JSON. Use actual data. Be insightful and encouraging!`
       currentSleepDuration = `${hours}h ${minutes}m`;
     }
 
-    // CALCULATE ADVANCED SLEEP ANALYTICS
     const last7Days = sleepLogs?.slice(0, 7) || [];
     const sleepAnalytics = calculateSleepAnalytics(last7Days, sleepLogs || []);
 
@@ -331,17 +788,14 @@ ALWAYS respond with valid JSON. Use actual data. Be insightful and encouraging!`
       };
     }
 
-    // Average duration
     const avgMinutes = last7Days.reduce((sum, log) => sum + (log.duration_minutes || 0), 0) / last7Days.length;
     const avgDuration = (avgMinutes / 60).toFixed(1);
 
-    // Sleep debt
     const totalDebt = last7Days.reduce((debt, log) => {
       const hours = log.duration_minutes / 60;
       return debt + (TARGET_SLEEP_HOURS - hours);
     }, 0);
 
-    // Current streak
     let streak = 0;
     for (let i = 0; i < allLogs.length; i++) {
       const hours = allLogs[i].duration_minutes / 60;
@@ -352,18 +806,25 @@ ALWAYS respond with valid JSON. Use actual data. Be insightful and encouraging!`
       }
     }
 
-    // Bedtime consistency
     const bedtimes = last7Days.map(log => {
       const start = new Date(log.sleep_start);
-      return start.getHours() + start.getMinutes() / 60;
+      const localStart = new Date(start.toLocaleString('en-US', { timeZone: userLocation.timezone }));
+      return localStart.getHours() + localStart.getMinutes() / 60;
     });
     const avgBedtime = bedtimes.reduce((a, b) => a + b, 0) / bedtimes.length;
     const bedtimeVariance = bedtimes.reduce((sum, time) => sum + Math.pow(time - avgBedtime, 2), 0) / bedtimes.length;
-    const bedtimeStdDev = Math.sqrt(bedtimeVariance) * 60; // minutes
+    const bedtimeStdDev = Math.sqrt(bedtimeVariance) * 60;
 
-    // Weekday vs Weekend
-    const weekdayLogs = last7Days.filter(log => !isWeekend(new Date(log.sleep_start)));
-    const weekendLogs = last7Days.filter(log => isWeekend(new Date(log.sleep_start)));
+    const weekdayLogs = last7Days.filter(log => {
+      const logDate = new Date(log.sleep_start);
+      const localDate = new Date(logDate.toLocaleString('en-US', { timeZone: userLocation.timezone }));
+      return !isWeekend(localDate);
+    });
+    const weekendLogs = last7Days.filter(log => {
+      const logDate = new Date(log.sleep_start);
+      const localDate = new Date(logDate.toLocaleString('en-US', { timeZone: userLocation.timezone }));
+      return isWeekend(localDate);
+    });
     const weekdayAvg = weekdayLogs.length > 0 
       ? (weekdayLogs.reduce((a, b) => a + b.duration_minutes, 0) / weekdayLogs.length / 60).toFixed(1)
       : 0;
@@ -371,13 +832,11 @@ ALWAYS respond with valid JSON. Use actual data. Be insightful and encouraging!`
       ? (weekendLogs.reduce((a, b) => a + b.duration_minutes, 0) / weekendLogs.length / 60).toFixed(1)
       : 0;
 
-    // Quality Score (0-100)
     const durationScore = Math.min((parseFloat(avgDuration) / TARGET_SLEEP_HOURS) * 40, 40);
     const consistencyScore = Math.max(30 - bedtimeStdDev / 2, 0);
     const goalScore = (last7Days.filter(log => log.duration_minutes / 60 >= TARGET_SLEEP_HOURS).length / last7Days.length) * 30;
     const qualityScore = Math.round(durationScore + consistencyScore + goalScore);
 
-    // Format average bedtime
     const hour = Math.floor(avgBedtime);
     const minute = Math.round((avgBedtime - hour) * 60);
     const period = hour >= 12 ? 'PM' : 'AM';
@@ -407,7 +866,6 @@ ALWAYS respond with valid JSON. Use actual data. Be insightful and encouraging!`
           if (location.pathname !== '/tracker') {
             navigate('/tracker');
           }
-          // Refresh page to update data
           window.location.reload();
           break;
         
@@ -424,7 +882,6 @@ ALWAYS respond with valid JSON. Use actual data. Be insightful and encouraging!`
           if (location.pathname !== '/tracker') {
             navigate('/tracker');
           }
-          // Refresh to update insights
           window.location.reload();
           break;
         
@@ -456,7 +913,9 @@ ALWAYS respond with valid JSON. Use actual data. Be insightful and encouraging!`
           break;
         
         case 'TOGGLE_COMPLETE':
-          const today = new Date().toISOString().split('T')[0];
+          const localNow = new Date(new Date().toLocaleString('en-US', { timeZone: userLocation.timezone }));
+          const today = localNow.toLocaleDateString('en-CA', { timeZone: userLocation.timezone });
+          
           const { data: existing } = await supabase
             .from('task_completions')
             .select('*')
@@ -527,14 +986,20 @@ ALWAYS respond with valid JSON. Use actual data. Be insightful and encouraging!`
               <Brain size={20} className="text-white" />
             </div>
             <div>
-              <h3 className="font-bold">ZenPsych AI</h3>
+              <h3 className="font-bold text-white">ZenPsych AI</h3>
               <p className="text-xs text-slate-400 flex items-center gap-1">
-                <Sparkles size={12} />
-                {location.pathname === '/' && 'Landing'}
-                {location.pathname === '/dashboard' && 'Dashboard Mode'}
-                {location.pathname === '/tracker' && 'Sleep Tracker Mode'}
-                {location.pathname === '/routine' && 'Routine Mode'}
-                {location.pathname === '/insights' && 'Insights Mode'}
+                {userLocation.isDetecting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-3 w-3 border-2 border-slate-400 border-t-transparent"></div>
+                    Detecting location...
+                  </>
+                ) : (
+                  <>
+                    <MapPin size={12} />
+                    {userLocation.city ? `${userLocation.city}, ` : ''}{userLocation.country}
+                    <span className="text-xs bg-slate-700 px-1 rounded ml-1">{userLocation.countryCode}</span>
+                  </>
+                )}
               </p>
             </div>
           </div>
@@ -545,6 +1010,22 @@ ALWAYS respond with valid JSON. Use actual data. Be insightful and encouraging!`
             <X size={24} />
           </button>
         </div>
+
+        {/* Debug Panel - Remove after testing
+        {!userLocation.isDetecting && (
+          <div className="p-2 bg-yellow-500/10 border-b border-yellow-500/20 text-xs text-yellow-200">
+            <p>🔍 Debug: Timezone: {userLocation.timezone} | Country: {userLocation.countryCode}</p>
+            <button 
+              onClick={() => {
+                setUserLocation(prev => ({ ...prev, countryCode: 'PH', country: 'Philippines', city: 'Metro Manila' }));
+                alert('Manually set to Philippines (PH)');
+              }}
+              className="mt-1 text-xs bg-yellow-600 px-2 py-1 rounded hover:bg-yellow-500"
+            >
+              Force Set to PH
+            </button>
+          </div>
+        )} */}
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -586,10 +1067,11 @@ ALWAYS respond with valid JSON. Use actual data. Be insightful and encouraging!`
             <button
               type="button"
               onClick={toggleVoiceInput}
+              disabled={userLocation.isDetecting}
               className={`p-3 rounded-xl transition-colors ${
                 isListening 
                   ? 'bg-red-600 hover:bg-red-500 animate-pulse' 
-                  : 'bg-slate-700 hover:bg-slate-600'
+                  : 'bg-slate-700 hover:bg-slate-600 disabled:opacity-50'
               }`}
             >
               {isListening ? <MicOff size={20} className="text-white" /> : <Mic size={20} className="text-white" />}
@@ -598,20 +1080,20 @@ ALWAYS respond with valid JSON. Use actual data. Be insightful and encouraging!`
               type="text"
               value={aiInput}
               onChange={e => setAIInput(e.target.value)}
-              placeholder={isListening ? "Listening..." : "How is my sleep?"}
+              placeholder={userLocation.isDetecting ? "Detecting location..." : isListening ? "Listening..." : "How is my sleep?"}
               className="flex-1 bg-slate-800 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
-              disabled={isAIThinking}
+              disabled={isAIThinking || userLocation.isDetecting}
             />
             <button
               type="submit"
-              disabled={!aiInput.trim() || isAIThinking}
+              disabled={!aiInput.trim() || isAIThinking || userLocation.isDetecting}
               className="bg-indigo-600 p-3 rounded-xl hover:bg-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Send size={20} className="text-white" />
             </button>
           </div>
           <p className="text-xs text-slate-500 mt-2 text-center">
-            {isListening ? '🎤 Listening...' : 'Try: "How is my sleep?" or "Why am I tired?"'}
+            {isListening ? '🎤 Listening...' : `Try: "How is my sleep?" ${userLocation.timezone ? `• ${userLocation.timezone}` : ''}`}
           </p>
         </form>
       </div>
