@@ -257,7 +257,7 @@ const handleLogout = async () => {
                 to="/register"
                 className="group px-8 py-4 bg-[#8488C2] hover:bg-[#7378b5] rounded-xl font-semibold transition-all shadow-xl shadow-[#8488C2]/35 flex items-center justify-center gap-2 text-white"
               >
-                Start Free Today
+                Start Today
                 <ArrowRight
                   size={20}
                   className="group-hover:translate-x-1 transition-transform"
@@ -611,7 +611,7 @@ const handleLogout = async () => {
                 to="/register"
                 className="inline-flex items-center gap-3 px-10 py-5 bg-gradient-to-r from-[#8488C2] to-[#4A5A8A] hover:from-[#7378b5] hover:to-[#3a497a] rounded-xl font-semibold text-lg transition-all shadow-2xl shadow-[#8488C2]/40 text-white group"
               >
-                Get Started for Free
+                Get Started Now
                 <ArrowRight
                   size={24}
                   className="group-hover:translate-x-1 transition-transform"
