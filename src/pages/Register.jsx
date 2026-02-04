@@ -4,7 +4,6 @@ import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { ArrowRight, User, Mail, Lock, Calendar } from 'lucide-react';
 
-// import your logo
 import ZenPsychLogo from '../assets/ZenPsych.png';
 
 export default function Register() {
@@ -17,6 +16,7 @@ export default function Register() {
     age: '',
     sex: ''
   });
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -24,6 +24,12 @@ export default function Register() {
 
   const handleRegister = async (e) => {
     e.preventDefault();
+    
+    if (!agreedToTerms) {
+      alert('Please agree to the Privacy Policy and Terms of Service to continue.');
+      return;
+    }
+    
     setLoading(true);
     
     try {
@@ -65,7 +71,7 @@ export default function Register() {
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-[#BCE1F0] to-[#8488C2]">
       <div className="bg-white/10 backdrop-blur-lg border border-[#8488C2]/40 p-8 rounded-2xl w-full max-w-md shadow-2xl">
         <div className="text-center mb-8">
-          <div className="w-30 h-16  mx-auto flex items-center justify-center mb-4  overflow-hidden">
+          <div className="w-30 h-16 mx-auto flex items-center justify-center mb-4 overflow-hidden">
             <img
               src={ZenPsychLogo}
               alt="ZenPsych logo"
@@ -165,9 +171,31 @@ export default function Register() {
             </div>
           </div>
 
+          {/* Privacy Clause Checkbox */}
+          <div className="flex items-start gap-3 p-4 bg-white/50 rounded-lg border border-[#8488C2]/30">
+            <input
+              type="checkbox"
+              id="privacy-agreement"
+              checked={agreedToTerms}
+              onChange={(e) => setAgreedToTerms(e.target.checked)}
+              className="mt-1 w-4 h-4 text-[#8488C2] bg-white border-[#8488C2]/40 rounded focus:ring-2 focus:ring-[#BCE1F0] cursor-pointer"
+            />
+            <label htmlFor="privacy-agreement" className="text-sm text-slate-700 cursor-pointer">
+              I agree to the{' '}
+              <Link to="/privacy" className="text-[#8488C2] hover:underline font-medium">
+                Privacy Policy
+              </Link>
+              {' '}and{' '}
+              <Link to="/terms" className="text-[#8488C2] hover:underline font-medium">
+                Terms of Service
+              </Link>
+              . I understand my data will be used to provide sleep tracking and analysis services.
+            </label>
+          </div>
+
           <button
-            disabled={loading}
-            className="w-full bg-[#8488C2] hover:bg-[#7378b5] text-white font-semibold py-3 rounded-lg transition-all shadow-lg shadow-[#8488C2]/35 disabled:opacity-50 flex items-center justify-center gap-2 group"
+            disabled={loading || !agreedToTerms}
+            className="w-full bg-[#8488C2] hover:bg-[#7378b5] text-white font-semibold py-3 rounded-lg transition-all shadow-lg shadow-[#8488C2]/35 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 group"
           >
             {loading ? (
               'Creating Account...'
